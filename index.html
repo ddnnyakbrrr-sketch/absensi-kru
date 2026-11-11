@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<!--
+  Absensi Kru Mobil Tangki
+  Hak Cipta (c) 2026 Deny Akbar
+  Versi V1
+-->
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#006CB8">
+  <meta name="color-scheme" content="light only">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Absensi Kru">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="description" content="Absensi supir dan kernet mobil tangki PT Patra Logistik FT Pangkalan Bun">
+  <title>Absensi Kru Mobil Tangki</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" type="image/png" href="assets/icon-192.png">
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+  <header class="kepala">
+    <div class="logo-baris">
+      <img class="logo" src="assets/logo-patra-logistik.png" alt="Logo Patra Logistik">
+      <img class="logo" src="assets/logo-pertamina.png" alt="Logo Pertamina">
+    </div>
+    <div class="nama-aplikasi">Absensi Kru Mobil Tangki</div>
+    <div class="nama-pt">PT Patra Logistik · FT Pangkalan Bun</div>
+  </header>
+
+  <button type="button" id="pita" class="pita" hidden></button>
+
+  <main>
+    <!-- Login -->
+    <section id="v-login" hidden>
+      <div class="panel-masuk">
+      <h1>Masuk</h1>
+      <p class="sub">Gunakan ID Kru dan PIN 6 angka dari admin.</p>
+      <form id="form-login" autocomplete="on" novalidate>
+        <label for="in-id">ID Kru</label>
+        <input id="in-id" name="username" type="text" autocomplete="username" autocapitalize="characters"
+          spellcheck="false" placeholder="Contoh: S001" maxlength="15">
+        <label for="in-pin">PIN</label>
+        <div class="input-pin">
+          <input id="in-pin" name="password" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="6"
+            autocomplete="current-password" placeholder="6 angka">
+          <button type="button" id="btn-lihat-pin" class="lihat" aria-controls="in-pin" aria-pressed="false">Lihat</button>
+        </div>
+        <div id="pesan-login" class="kotak-pesan merah" role="alert" hidden></div>
+        <button type="submit" id="btn-masuk" class="tombol besar" style="margin-top:20px">Masuk</button>
+      </form>
+      <div id="info-ios" class="kotak-pesan biasa" hidden>
+        Di iPhone: pasang dulu aplikasi ke Layar Utama lewat tombol Bagikan di Safari, lalu buka dari ikon
+        Absensi Kru dan masuk dari sana. Akun terkunci di tempat Anda pertama kali masuk.
+      </div>
+      <button type="button" id="btn-pasang" class="tombol kedua" style="margin-top:12px" hidden>Pasang Aplikasi di HP</button>
+      <p class="bantuan">Lupa PIN atau ganti HP? Hubungi admin.</p>
+      <div class="tautan-bawah" style="margin-top:4px"><a href="panduan-kru.html">Cara Pakai</a></div>
+      </div>
+    </section>
+
+    <!-- Beranda -->
+    <section id="v-beranda" hidden>
+      <div id="kartu-kru" class="kartu profil"></div>
+      <div id="kartu-status" class="kartu status" aria-live="polite"></div>
+      <div class="grid-aksi">
+        <button type="button" id="btn-absen-masuk" class="aksi">
+          <span class="judul-aksi">Absen Masuk</span><span class="sub-aksi" id="sub-masuk"></span>
+        </button>
+        <button type="button" id="btn-absen-pulang" class="aksi">
+          <span class="judul-aksi">Absen Pulang</span><span class="sub-aksi" id="sub-pulang"></span>
+        </button>
+      </div>
+      <p class="bantuan">Izin, sakit, atau cuti: beri tahu admin langsung.</p>
+      <div class="tautan-bawah">
+        <a href="panduan-kru.html">Cara Pakai</a>
+        <button type="button" id="btn-keluar" class="tombol-tautan">Keluar</button>
+      </div>
+    </section>
+
+    <!-- Alur absen -->
+    <section id="v-alur" hidden>
+      <div id="isi-alur"></div>
+    </section>
+
+  </main>
+
+  <footer id="kaki" class="kaki">Hak Cipta © 2026 Deny Akbar · V1</footer>
+
+  <!-- Tombol Kembali/Lanjut yang tetap di bawah layar saat absen -->
+  <div id="bar-aksi" class="bar-aksi" hidden>
+    <div id="bar-isi" class="bar-isi"></div>
+  </div>
+
+  <!-- Kamera layar penuh -->
+  <div id="kamera" class="kamera" hidden>
+    <video id="kamera-video" playsinline muted autoplay></video>
+    <div id="kamera-bingkai" class="bingkai"></div>
+    <div id="kamera-pesan" class="kamera-pesan"></div>
+    <div class="kamera-bawah">
+      <button type="button" id="kamera-batal" class="tombol kedua">Batal</button>
+      <button type="button" id="kamera-jepret" class="tombol jepret">Ambil Foto</button>
+      <button type="button" id="kamera-senter" class="tombol kedua" hidden>Senter</button>
+    </div>
+  </div>
+
+  <!-- Dialog pesan -->
+  <div id="lapisan" class="lapisan" hidden>
+    <div id="dialog" class="dialog" role="dialog" aria-modal="true"></div>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="js/inti.js"></script>
+  <script src="js/perangkat.js"></script>
+  <script src="js/antrian.js"></script>
+  <script src="js/alur.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

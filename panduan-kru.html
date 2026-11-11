@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<!--
+  Absensi Kru Mobil Tangki
+  Hak Cipta (c) 2026 Deny Akbar
+  Versi V1
+  Panduan kru (sama dengan halaman Cara Pakai di aplikasi). Bisa dicetak atau disimpan jadi PDF.
+-->
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#006CB8">
+  <title>Cara Pakai - Absensi Kru Mobil Tangki</title>
+  <link rel="icon" type="image/png" href="assets/icon-192.png">
+  <style>
+    :root { --biru: #006CB8; --teks: #101828; --teks-2: #475467; --garis: #D0D5DD; --latar-2: #F2F4F7; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #fff; color: var(--teks); font-family: Roboto, Arial, Helvetica, sans-serif;
+      font-size: 17px; line-height: 1.5; }
+    .kepala { text-align: center; padding: 10px 16px; border-bottom: 3px solid var(--biru); }
+    .logo-baris { display: flex; justify-content: space-between; align-items: center; max-width: 720px;
+      margin: 0 auto 8px; min-height: 44px; gap: 12px; }
+    .logo-baris img, .logo-kosong { height: 36px; max-width: 42%; object-fit: contain; }
+    .logo-kosong { width: 104px; border: 1px dashed #98A2B3; border-radius: 4px; color: #667085;
+      font-size: 12px; display: flex; align-items: center; justify-content: center; }
+    .nama-aplikasi { font-size: 18px; font-weight: 700; color: var(--biru); }
+    .nama-pt { font-size: 13px; color: var(--teks-2); }
+    main { max-width: 720px; margin: 0 auto; padding: 8px 16px 16px; }
+    h1 { font-size: 23px; margin: 14px 0 4px; }
+    h2 { font-size: 19px; color: var(--biru); margin: 22px 0 6px; padding-bottom: 4px; border-bottom: 1px solid var(--garis); }
+    ol, ul { margin: 6px 0; padding-left: 24px; }
+    li { margin: 4px 0; }
+    .catatan { background: var(--latar-2); border: 1px solid var(--garis); border-radius: 6px; padding: 10px 12px; margin: 10px 0; }
+    .alat { display: flex; gap: 10px; margin: 10px 0 4px; flex-wrap: wrap; }
+    .alat a, .alat button { display: inline-block; border: 2px solid var(--biru); border-radius: 6px; padding: 10px 16px;
+      font: inherit; font-weight: 700; color: var(--biru); background: #fff; text-decoration: none; cursor: pointer; }
+    .alat button { background: var(--biru); color: #fff; }
+    table { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: 16px; }
+    th, td { border: 1px solid var(--garis); padding: 8px; text-align: left; vertical-align: top; }
+    th { background: var(--latar-2); }
+    .kaki { text-align: right; font-size: 12px; color: #667085; padding: 12px 16px; }
+    @media print {
+      @page { size: A4; margin: 12mm; }
+      body { font-size: 11.5pt; line-height: 1.35; }
+      .alat { display: none; }
+      h1 { font-size: 16pt; margin-top: 6px; }
+      h2 { font-size: 13pt; margin: 12px 0 4px; break-after: avoid; }
+      li { margin: 1px 0; }
+      table { font-size: 10.5pt; }
+      th, td { padding: 4px 6px; }
+      .kepala { padding-top: 0; }
+      section { break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+  <header class="kepala">
+    <div class="logo-baris">
+      <img class="logo" src="assets/logo-patra-logistik.png" alt="Logo Patra Logistik">
+      <img class="logo" src="assets/logo-pertamina.png" alt="Logo Pertamina">
+    </div>
+    <div class="nama-aplikasi">Absensi Kru Mobil Tangki</div>
+    <div class="nama-pt">PT Patra Logistik · FT Pangkalan Bun</div>
+  </header>
+
+  <main>
+    <div class="alat">
+      <a href="index.html">Kembali ke Aplikasi</a>
+      <button type="button" onclick="window.print()">Cetak / Simpan PDF</button>
+    </div>
+    <h1>Cara Pakai</h1>
+    <p>Alamat aplikasi: <strong id="alamat">-</strong></p>
+
+    <section>
+      <h2>1. Yang perlu disiapkan</h2>
+      <ul>
+        <li>HP dengan kamera dan paket data internet.</li>
+        <li>Lokasi (GPS) di HP dinyalakan.</li>
+        <li>ID Kru dan PIN dari admin. Jangan berikan PIN ke orang lain.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>2. Pasang aplikasi di HP Android</h2>
+      <ol>
+        <li>Buka alamat aplikasi di <strong>Google Chrome</strong>.</li>
+        <li>Ketuk tombol <strong>Pasang Aplikasi di HP</strong> di halaman Masuk. Kalau tombol itu tidak ada, ketuk titik tiga di kanan atas, lalu pilih <strong>Tambahkan ke layar utama</strong> atau <strong>Instal aplikasi</strong>.</li>
+        <li>Ketuk <strong>Pasang</strong> atau <strong>Tambahkan</strong>.</li>
+        <li>Ikon <strong>Absensi Kru</strong> muncul di layar HP. Selanjutnya buka aplikasi dari ikon itu.</li>
+      </ol>
+    </section>
+
+    <section>
+      <h2>3. Pasang aplikasi di iPhone</h2>
+      <ol>
+        <li>Buka alamat aplikasi di <strong>Safari</strong> (bukan Chrome).</li>
+        <li>Ketuk tombol <strong>Bagikan</strong> di bagian bawah layar (gambar kotak dengan panah ke atas).</li>
+        <li>Geser ke bawah, pilih <strong>Tambah ke Layar Utama</strong>, lalu ketuk <strong>Tambah</strong>.</li>
+        <li>Buka aplikasi dari ikon <strong>Absensi Kru</strong> di layar HP, lalu masuk dari situ. Jangan masuk dari Safari.</li>
+      </ol>
+    </section>
+
+    <section>
+      <h2>4. Masuk pertama kali</h2>
+      <ol>
+        <li>Ketik ID Kru (contoh: S001) dan PIN 6 angka, lalu ketuk <strong>Masuk</strong>.</li>
+        <li>Kalau HP meminta izin <strong>lokasi</strong> dan <strong>kamera</strong>, pilih <strong>Izinkan</strong>.</li>
+      </ol>
+      <div class="catatan">Akun Anda terkunci di HP yang pertama kali dipakai untuk masuk. Satu HP hanya untuk satu akun. Kalau ganti HP, hubungi admin.</div>
+    </section>
+
+    <section>
+      <h2>5. Absen masuk</h2>
+      <p><strong>Supir:</strong></p>
+      <ol>
+        <li>Ketuk <strong>Absen Masuk</strong>. Tunggu sampai muncul <strong>Lokasi sesuai</strong>, lalu ketuk <strong>Lanjut</strong>.</li>
+        <li><strong>Scan QR</strong>: arahkan kamera ke stiker QR yang ditempel di truk sampai nopol muncul.</li>
+        <li><strong>Selfie</strong> di depan truk. Wajah dan depan truk harus kelihatan.</li>
+        <li><strong>Foto odometer</strong>, lalu ketik angka KM (angka saja, tanpa titik).</li>
+        <li>Isi <strong>checklist P2H</strong>. Pilih Baik atau Tidak untuk setiap item. Kalau Tidak, tulis catatan dan foto temuannya.</li>
+        <li>Periksa ringkasan, lalu ketuk <strong>Kirim Absen Masuk</strong>.</li>
+      </ol>
+      <p><strong>Kernet:</strong> Absen Masuk, tunggu Lokasi sesuai, scan QR truk, selfie di depan truk, lalu Kirim.</p>
+      <div class="catatan">Jam masuk paling lambat 06:00 WIB. Lewat dari jam itu tetap bisa absen, tapi tercatat Telat.
+        Absen masuk hanya bisa di lokasi FT. Kalau masih jauh, aplikasi memberi tahu jaraknya.</div>
+    </section>
+
+    <section>
+      <h2>6. Absen pulang</h2>
+      <ul>
+        <li><strong>Supir:</strong> Absen Pulang, tunggu lokasi terbaca, selfie, foto odometer, ketik KM pulang, lalu Kirim.</li>
+        <li><strong>Kernet:</strong> Absen Pulang, tunggu lokasi terbaca, selfie, lalu Kirim.</li>
+        <li>Absen pulang bisa di mana saja. Kalau di luar pool, tetap bisa tetapi ditandai "Di luar pool".</li>
+        <li>Kalau perjalanan lebih dari satu hari, absen pulang setelah kembali. Selama itu status Anda "Masih di jalan".</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>7. Izin, sakit, cuti</h2>
+      <p>Tidak lewat aplikasi. Beri tahu admin langsung (telepon atau pesan) dan serahkan suratnya kalau ada. Admin yang mencatatnya.</p>
+    </section>
+
+    <section>
+      <h2>8. Kalau tidak ada sinyal</h2>
+      <ul>
+        <li>Absen tetap bisa. Data dan foto disimpan dulu di HP.</li>
+        <li>Muncul tulisan <strong>Menunggu sinyal, X data belum terkirim</strong>.</li>
+        <li>Data terkirim sendiri begitu ada sinyal. Buka aplikasi lagi saat sudah dapat sinyal.</li>
+        <li>Jangan hapus data aplikasi atau data browser sebelum semua data terkirim.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>9. Kalau muncul pesan ini</h2>
+      <table>
+        <tr><th>Pesan</th><th>Yang harus dilakukan</th></tr>
+        <tr><td>Lokasi belum aktif / Izin lokasi ditolak</td><td>Nyalakan lokasi (GPS) di HP dan izinkan lokasi untuk aplikasi, lalu coba lagi.</td></tr>
+        <tr><td>Sinyal GPS lemah</td><td>Pindah ke tempat terbuka (tidak di bawah atap), tunggu sebentar, lalu coba lagi.</td></tr>
+        <tr><td>Anda berada ... dari FT Pangkalan Bun</td><td>Mendekat ke lokasi FT, lalu coba lagi.</td></tr>
+        <tr><td>Izin kamera ditolak</td><td>Buka pengaturan browser atau HP, izinkan kamera untuk aplikasi, lalu coba lagi.</td></tr>
+        <tr><td>QR tidak dikenal / QR sudah tidak berlaku</td><td>Pastikan yang di-scan stiker QR di truk. Kalau stiker rusak atau lama, lapor admin.</td></tr>
+        <tr><td>PIN salah 5 kali</td><td>Tunggu 15 menit lalu coba lagi, atau hubungi admin.</td></tr>
+        <tr><td>Akun terkunci di HP lain</td><td>Hubungi admin untuk reset HP.</td></tr>
+        <tr><td>Versi baru tersedia</td><td>Ketuk tulisan itu supaya aplikasi memuat versi terbaru.</td></tr>
+        <tr><td>Lupa PIN</td><td>Hubungi admin.</td></tr>
+      </table>
+    </section>
+  </main>
+
+  <footer class="kaki" id="kaki">Hak Cipta © 2026 Deny Akbar · V1</footer>
+
+  <script src="config.js"></script>
+  <script>
+    (function () {
+      var k = window.KONFIG || {};
+      if (k.VERSI) document.getElementById('kaki').textContent = (k.HAK_CIPTA || 'Hak Cipta © 2026 Deny Akbar') + ' · ' + k.VERSI;
+      if (k.WARNA_UTAMA) document.documentElement.style.setProperty('--biru', k.WARNA_UTAMA);
+      document.getElementById('alamat').textContent = location.href.replace(/panduan-kru\.html.*$/, '');
+      Array.prototype.forEach.call(document.querySelectorAll('img.logo'), function (img) {
+        var ganti = function () {
+          var kotak = document.createElement('div');
+          kotak.className = 'logo-kosong';
+          kotak.textContent = 'Logo';
+          if (img.parentNode) img.parentNode.replaceChild(kotak, img);
+        };
+        if (img.complete && !img.naturalWidth) ganti();
+        else img.addEventListener('error', ganti);
+      });
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,17 @@
+{
+  "name": "Absensi Kru Mobil Tangki",
+  "short_name": "Absensi Kru",
+  "description": "Absensi supir dan kernet mobil tangki PT Patra Logistik FT Pangkalan Bun",
+  "lang": "id",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#FFFFFF",
+  "theme_color": "#006CB8",
+  "icons": [
+    { "src": "assets/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
