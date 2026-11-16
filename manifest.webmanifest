@@ -1,7 +1,7 @@
 {
   "name": "Absensi Kru Mobil Tangki",
   "short_name": "Absensi Kru",
-  "description": "Absensi supir dan kernet mobil tangki PT Patra Logistik FT Pangkalan Bun",
+  "description": "Absensi kru mobil tangki dan karyawan PT Patra Logistik FT Pangkalan Bun",
   "lang": "id",
   "start_url": "./index.html",
   "scope": "./",

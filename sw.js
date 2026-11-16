@@ -1,7 +1,7 @@
 /*
  * Absensi Kru Mobil Tangki
  * Hak Cipta (c) 2026 Deny Akbar
- * Versi V1.1
+ * Versi V2.0
  *
  * Service worker: menyimpan file aplikasi di HP supaya tetap bisa dibuka tanpa sinyal.
  * Nama cache mengikuti VERSI di config.js. Saat VERSI dinaikkan, HP mengunduh versi baru
@@ -21,7 +21,6 @@ var FILE_WAJIB = [
   'js/antrian.js',
   'js/alur.js',
   'js/app.js',
-  'lib/jsQR.js',
   'assets/icon-192.png',
   'assets/icon-512.png',
   'assets/apple-touch-icon.png'
