@@ -1,7 +1,7 @@
 /*
  * Absensi Kru Mobil Tangki
  * Hak Cipta (c) 2026 Deny Akbar
- * Versi V1.1
+ * Versi V1.3
  *
  * Tampilan utama: login, beranda, daftar data yang belum terkirim, pemberitahuan, dan pemasangan aplikasi.
  */
@@ -269,7 +269,6 @@
         token: hasil.token,
         profil: hasil.profil,
         pengaturan: hasil.pengaturan,
-        lokasi: hasil.lokasi,
         unit: hasil.unit,
         p2h: hasil.p2h,
         status: hasil.status,
@@ -392,9 +391,7 @@
       rinci.push('Lakukan absen pulang setelah kembali.');
     } else if (st.keadaan === 'PULANG') {
       utama = 'Sudah pulang jam ' + util.jam(sesi.pulang);
-      var luar = sesi.statusPulang === 'Di luar pool';
-      if (sesi.statusPulang) chips.push(chip(sesi.statusPulang, luar ? 'merah' : 'hijau'));
-      warna = luar ? 'merah' : 'hijau';
+      warna = 'hijau';
       if (sesi.masuk) rinci.push('Masuk jam ' + util.jam(sesi.masuk) + (sesi.nopol ? ' · Unit ' + sesi.nopol : ''));
       if (sesi.kmHarian !== null && sesi.kmHarian !== undefined) rinci.push('KM hari ini ' + util.angka(sesi.kmHarian) + ' km');
     } else {

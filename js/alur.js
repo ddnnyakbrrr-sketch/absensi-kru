@@ -1,7 +1,7 @@
 /*
  * Absensi Kru Mobil Tangki
  * Hak Cipta (c) 2026 Deny Akbar
- * Versi V1.1
+ * Versi V1.3
  *
  * Langkah absen masuk dan pulang (lokasi, scan QR, selfie, odometer, P2H, ringkasan)
  * dan kamera layar penuh.
@@ -72,8 +72,7 @@
           pesan.textContent = 'Memproses foto...';
           var waktu = AK.waktu.sekarang();
           var gps = AK.lokasi.bagus() || AK.lokasi.terakhir();
-          var kanvas = AK.kamera.jepret(video);
-          AK.kamera.cap(kanvas, opsi.baris(waktu, gps));
+          var kanvas = AK.kamera.cap(AK.kamera.jepret(video), opsi.info(waktu, gps));
           AK.kamera.kompres(kanvas).then(function (foto) {
             akhiri({ dataUrl: foto.dataUrl, ukuran: foto.ukuran, waktu: waktu, gps: gps });
           }, function () {
@@ -88,19 +87,34 @@
     });
   }
 
-  function barisCap(jenisFoto, nopol, waktu, gps) {
+  // Isi cap foto. AMT1 untuk supir, AMT2 untuk kernet.
+  function infoCap(label, nopol, waktu, gps) {
     var s = AK.sesi.ambil();
     var p = s.profil;
-    var b = [jenisFoto + ' · ' + (nopol || p.nopol || '-'), util.tanggal(waktu) + ' · ' + util.jam(waktu, true) + ' WIB'];
-    if (gps) {
-      b.push(gps.lat.toFixed(6) + ', ' + gps.lng.toFixed(6) + ' (±' + Math.round(gps.akurasi) + ' m)');
-      var t = AK.lokasi.terdekat(gps, s.lokasi);
-      b.push(t ? t.nama + ' · ' + util.meter(t.jarak) : 'Lokasi kerja belum diatur');
-    } else {
-      b.push('Lokasi belum terbaca');
-    }
-    b.push(p.nama + ' · ' + p.jabatan);
-    return b;
+    var atur = s.pengaturan || {};
+    var tgl = util.tanggal(waktu).split(', ');
+    return {
+      label: label,
+      jam: util.jam(waktu),
+      hari: tgl[0],
+      tanggal: tgl[1] || '',
+      alamat: alamatUntuk(gps),
+      baris: [
+        (p.jabatan === 'Kernet' ? 'AMT2' : 'AMT1') + ': ' + p.nama,
+        'NOPOL: ' + AK.kamera.nopolCap(nopol || p.nopol),
+        'Koordinat: ' + (gps ? AK.kamera.koordinatCap(gps) : 'belum terbaca')
+      ],
+      namaPT: String(atur.namaPT || 'PT Patra Logistik').toUpperCase(),
+      lokasiKerja: String(atur.lokasiKerja || 'FT Pangkalan Bun').toUpperCase(),
+      warna: (w.KONFIG && w.KONFIG.WARNA_UTAMA) || '#006CB8'
+    };
+  }
+
+  // Alamat hanya dipakai kalau foto diambil di sekitar titik tempat alamat itu dicari.
+  function alamatUntuk(gps) {
+    var a = alur && alur.alamat;
+    if (!gps || !a || a.status !== 'ada') return '';
+    return AK.lokasi.jarak(a.pos, gps) <= 300 ? a.teks : '';
   }
 
   // ---------- Alur absen ----------
@@ -118,6 +132,7 @@
       idx: 0,
       st: st,
       gps: null,
+      alamat: null,
       galatGps: '',
       mulaiGps: Date.now(),
       data: {
@@ -225,7 +240,9 @@
     var dt = alur.data;
     if (k === 'lokasi') {
       var c = cekLokasi();
-      return c.ok ? true : (diam ? false : c.pesan);
+      if (!c.ok) return diam ? false : c.pesan;
+      if (alamatDitunggu()) return diam ? false : 'Sedang mengambil alamat untuk cap foto. Tunggu sebentar.';
+      return true;
     }
     if (k === 'qr') return dt.qr ? true : (diam ? false : 'Scan dulu stiker QR yang ditempel di truk.');
     if (k === 'selfie') return dt.selfie ? true : (diam ? false : 'Ambil dulu foto selfie di depan truk.');
@@ -271,8 +288,8 @@
   }
 
   // ---------- Langkah: lokasi ----------
+  // Absen bisa dari mana saja. Lokasi tetap dibaca supaya koordinat dan alamat tercetak di foto.
   function cekLokasi() {
-    var s = AK.sesi.ambil();
     var g = alur.gps;
     var maks = akurasiMaks();
     if (alur.galatGps && !g) return { ok: false, pesan: alur.galatGps };
@@ -284,30 +301,44 @@
     if (g.akurasi > maks) {
       return { ok: false, pesan: 'Sinyal GPS lemah (akurasi ' + Math.round(g.akurasi) + ' m). Tunggu sebentar di tempat terbuka, lalu coba lagi.' };
     }
-    var t = AK.lokasi.terdekat(g, s.lokasi);
-    if (alur.jenis === 'masuk') {
-      if (!t) return { ok: false, pesan: 'Lokasi kerja belum diatur di sistem. Hubungi admin.' };
-      if (!t.didalam) {
-        return { ok: false, pesan: 'Anda berada ' + util.meter(t.jarak) + ' dari ' + t.nama + '. Absen masuk hanya bisa dalam radius ' +
-          t.radius + ' m. Silakan mendekat ke lokasi lalu coba lagi.' };
-      }
-      return { ok: true, pesan: 'Lokasi sesuai: ' + t.nama + ' (' + util.meter(t.jarak) + ').', t: t };
-    }
-    if (t && !t.didalam) {
-      return { ok: true, luar: true, pesan: 'Anda di luar pool (' + util.meter(t.jarak) + ' dari ' + t.nama + '). Absen pulang tetap bisa dan akan ditandai "Di luar pool".' };
-    }
-    return { ok: true, pesan: t ? 'Lokasi: ' + t.nama + ' (' + util.meter(t.jarak) + ').' : 'Lokasi terbaca.' };
+    return { ok: true, pesan: 'Lokasi terbaca. Koordinat dan alamat akan tercetak di foto.' };
+  }
+
+  // Alamat untuk cap foto diambil dari server (Google Maps). Tanpa sinyal, foto tetap dicap dengan koordinat.
+  function ambilAlamat(g) {
+    var a = alur.alamat;
+    if (a && (a.status === 'cari' || AK.lokasi.jarak(a.pos, g) < 150)) return;
+    var s = AK.sesi.ambil();
+    var x = { status: 'cari', teks: '', pos: { lat: g.lat, lng: g.lng }, mulai: Date.now() };
+    alur.alamat = x;
+    AK.api.panggil('alamat', { token: s.token, idHp: AK.idHp.ambil(), gps: { lat: g.lat, lng: g.lng } }, { batas: 12000 })
+      .then(function (hasil) {
+        x.teks = hasil.alamat || '';
+        x.status = x.teks ? 'ada' : 'gagal';
+      }, function () { x.status = 'gagal'; })
+      .then(segarkanLokasi);
+    w.setTimeout(segarkanLokasi, 8100);
+  }
+
+  function segarkanLokasi() { if (alur && langkahKini() === 'lokasi') perbaruiLokasi(); }
+
+  // Tombol Lanjut menunggu alamat paling lama 8 detik. Setelah itu boleh lanjut tanpa alamat.
+  function alamatDitunggu() {
+    var a = alur.alamat;
+    return !!(a && a.status === 'cari' && Date.now() - a.mulai < 8000);
   }
 
   function gambarLokasi(isi) {
-    isi.appendChild(h('p', { text: 'Aplikasi memeriksa lokasi Anda. Pastikan GPS (lokasi) di HP menyala.' }));
+    isi.appendChild(h('p', { text: 'Aplikasi membaca lokasi Anda. Pastikan GPS (lokasi) di HP menyala.' }));
     isi.appendChild(h('div', { class: 'kartu' }, [
       h('div', { class: 'data-baris' }, [h('span', { text: 'Akurasi GPS' }), h('span', { id: 'lok-akurasi', text: '-' })]),
-      h('div', { class: 'data-baris' }, [h('span', { text: 'Lokasi terdekat' }), h('span', { id: 'lok-dekat', text: '-' })])
+      h('div', { class: 'data-baris' }, [h('span', { text: 'Koordinat' }), h('span', { id: 'lok-koordinat', text: '-' })]),
+      h('div', { class: 'data-baris' }, [h('span', { text: 'Alamat' }), h('span', { id: 'lok-alamat', text: '-' })])
     ]));
     isi.appendChild(h('div', { id: 'lok-pesan', class: 'kotak-pesan biasa', text: 'Sedang mencari lokasi...' }));
     isi.appendChild(h('button', { type: 'button', class: 'tombol kedua', text: 'Cari ulang lokasi', onclick: function () {
       alur.gps = null;
+      alur.alamat = null;
       mulaiGps();
       perbaruiLokasi();
     } }));
@@ -317,13 +348,15 @@
   function perbaruiLokasi() {
     var el = $('lok-pesan');
     if (!el || !alur) return;
-    var s = AK.sesi.ambil();
     var g = alur.gps;
-    $('lok-akurasi').textContent = g ? Math.round(g.akurasi) + ' m' : '-';
-    var t = g ? AK.lokasi.terdekat(g, s.lokasi) : null;
-    $('lok-dekat').textContent = t ? t.nama + ', ' + util.meter(t.jarak) : '-';
     var c = cekLokasi();
-    el.className = 'kotak-pesan ' + (c.ok ? (c.luar ? 'biasa' : 'hijau') : (g || alur.galatGps ? 'merah' : 'biasa'));
+    if (c.ok) ambilAlamat(g);
+    var a = alur.alamat;
+    $('lok-akurasi').textContent = g ? Math.round(g.akurasi) + ' m' : '-';
+    $('lok-koordinat').textContent = g ? AK.kamera.koordinatCap(g) : '-';
+    $('lok-alamat').textContent = !a ? '-' : a.status === 'cari' ? 'Mengambil alamat...'
+      : a.status === 'ada' ? a.teks : 'Tidak tersedia (tanpa sinyal). Foto tetap dicap koordinat.';
+    el.className = 'kotak-pesan ' + (c.ok ? 'hijau' : (g || alur.galatGps ? 'merah' : 'biasa'));
     el.textContent = c.pesan;
     perbaruiLanjut();
   }
@@ -380,9 +413,9 @@
   function gambarSelfie(isi) {
     isi.appendChild(h('p', { text: 'Berdiri di depan truk. Wajah dan depan truk (plat nomor) harus kelihatan di foto.' }));
     gambarFoto(isi, alur.data.selfie, 'Buka Kamera Depan', function () {
-      var jenis = alur.jenis === 'masuk' ? 'MASUK' : 'PULANG';
+      var label = alur.jenis === 'masuk' ? 'ABSEN MASUK' : 'ABSEN PULANG';
       bukaKameraLayar({ arah: 'user', teksBingkai: 'Wajah dan depan truk harus kelihatan',
-        baris: function (waktu, gps) { return barisCap(jenis, alur.data.nopol, waktu, gps); } }).then(function (foto) {
+        info: function (waktu, gps) { return infoCap(label, alur.data.nopol, waktu, gps); } }).then(function (foto) {
         if (!foto || !alur) return;
         alur.data.selfie = foto;
         gambar();
@@ -396,9 +429,9 @@
     var dt = alur.data;
     isi.appendChild(h('p', { text: 'Foto angka odometer (KM) di dashboard truk dengan jelas, lalu ketik angkanya.' }));
     gambarFoto(isi, dt.odometer, 'Buka Kamera Belakang', function () {
-      var jenis = alur.jenis === 'masuk' ? 'ODOMETER MASUK' : 'ODOMETER PULANG';
+      var label = alur.jenis === 'masuk' ? 'ODOMETER MASUK' : 'ODOMETER PULANG';
       bukaKameraLayar({ arah: 'environment', teksBingkai: 'Angka odometer harus terbaca jelas',
-        baris: function (waktu, gps) { return barisCap(jenis, dt.nopol, waktu, gps); } }).then(function (foto) {
+        info: function (waktu, gps) { return infoCap(label, dt.nopol, waktu, gps); } }).then(function (foto) {
         if (!foto || !alur) return;
         dt.odometer = foto;
         gambar();
@@ -470,7 +503,7 @@
         kotak.appendChild(h('button', { type: 'button', class: 'tombol kedua', text: x.foto ? 'Ulangi Foto Temuan' : 'Foto Temuan (wajib)',
           onclick: function () {
             bukaKameraLayar({ arah: 'environment', teksBingkai: 'Temuan harus terlihat jelas',
-              baris: function (waktu, gps) { return barisCap('TEMUAN P2H', dt.nopol, waktu, gps); } }).then(function (foto) {
+              info: function (waktu, gps) { return infoCap('TEMUAN P2H', dt.nopol, waktu, gps); } }).then(function (foto) {
               if (!foto || !alur) return;
               x.foto = foto;
               var y = w.scrollY;
@@ -504,14 +537,15 @@
     var s = AK.sesi.ambil();
     var dt = alur.data;
     var g = gpsKirim();
-    var t = g ? AK.lokasi.terdekat(g, s.lokasi) : null;
+    var alamat = alamatUntuk(g);
     var daftar = h('div', { class: 'kartu daftar-ringkas' });
     daftar.appendChild(baris('Nama', s.profil.nama));
     daftar.appendChild(baris('Jabatan', s.profil.jabatan));
     daftar.appendChild(baris('Unit', dt.nopol || '-'));
     daftar.appendChild(baris('Jam foto', util.jam(dt.selfie.waktu, true) + ' WIB'));
     daftar.appendChild(baris('Tanggal', util.tanggal(dt.selfie.waktu)));
-    daftar.appendChild(baris('Lokasi', t ? t.nama + ', ' + util.meter(t.jarak) : (g ? 'Terbaca' : 'Belum terbaca')));
+    daftar.appendChild(baris('Koordinat', g ? AK.kamera.koordinatCap(g) : 'Belum terbaca'));
+    if (alamat) daftar.appendChild(baris('Alamat', alamat));
     if (alur.jenis === 'masuk') {
       var tl = perkiraanTelat();
       daftar.appendChild(baris('Status', tl.statusMasuk === 'Telat' ? 'Telat ' + tl.menitTelat + ' menit' : 'Tepat waktu'));
@@ -603,7 +637,6 @@
       if (jenis === 'masuk') rinci.push(sesi.statusMasuk === 'Telat' ? 'Status: Telat ' + sesi.menitTelat + ' menit' : 'Status: Tepat waktu');
       if (sesi.nopol) rinci.push('Unit ' + sesi.nopol);
       if (jenis === 'pulang' && sesi.kmHarian !== null && sesi.kmHarian !== undefined) rinci.push('KM hari ini ' + util.angka(sesi.kmHarian) + ' km');
-      if (jenis === 'pulang' && sesi.statusPulang) rinci.push('Status pulang: ' + sesi.statusPulang);
       var catatan = (sesi.catatan || '').split('; ').filter(function (c) { return c && c !== 'Telat'; });
       isi.appendChild(h('div', { class: 'kotak-pesan hijau', text: judul + ' tercatat di server.' }));
       isi.appendChild(h('div', { class: 'kartu' }, rinci.map(function (r) { return h('div', { text: r }); })));

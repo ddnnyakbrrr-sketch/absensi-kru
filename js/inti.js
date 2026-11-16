@@ -1,7 +1,7 @@
 /*
  * Absensi Kru Mobil Tangki
  * Hak Cipta (c) 2026 Deny Akbar
- * Versi V1.1
+ * Versi V1.3
  *
  * Fungsi inti: format tanggal WIB, jam server, penyimpanan di HP, ID HP, dan pemanggilan server.
  */
@@ -204,7 +204,7 @@
     perbarui: function (data) {
       var s = sesi.ambil();
       if (!s) return null;
-      ['profil', 'pengaturan', 'lokasi', 'unit', 'p2h', 'status'].forEach(function (k) {
+      ['profil', 'pengaturan', 'unit', 'p2h', 'status'].forEach(function (k) {
         if (data[k] !== undefined) s[k] = data[k];
       });
       if (data.tokenBaru) s.token = data.tokenBaru;
