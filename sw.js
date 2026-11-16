@@ -1,7 +1,7 @@
 /*
  * Absensi Kru Mobil Tangki
  * Hak Cipta (c) 2026 Deny Akbar
- * Versi V2.0
+ * Versi V2.1
  *
  * Service worker: menyimpan file aplikasi di HP supaya tetap bisa dibuka tanpa sinyal.
  * Nama cache mengikuti VERSI di config.js. Saat VERSI dinaikkan, HP mengunduh versi baru
