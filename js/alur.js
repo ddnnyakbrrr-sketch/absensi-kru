@@ -1,7 +1,7 @@
 /*
  * Absensi Kru Mobil Tangki
  * Hak Cipta (c) 2026 Deny Akbar
- * Versi V2.1
+ * Versi V2.2
  *
  * Absen di HP admin: orang yang dipilih dari daftar selfie dengan kamera depan, lalu dikirim.
  * AMT 1 dan AMT 2 cukup absen masuk. Karyawan absen masuk dan pulang.
@@ -71,28 +71,26 @@
     return AK.lokasi.jarak(a.pos, gps) <= 300 ? a.teks : '';
   }
 
-  // Keadaan lokasi untuk ditampilkan: { ok, teks }
+  // Keadaan lokasi untuk ditampilkan: { ok, galat, teks }
   function keadaanLokasi() {
     var g = AK.lokasi.bagus();
-    if (g) {
-      var a = posisi.alamat;
-      return {
-        ok: true,
-        teks: 'Lokasi terbaca (±' + Math.round(g.akurasi) + ' m)' +
-          (a && a.status === 'ada' ? ' · ' + a.teks : (a && a.status === 'cari' ? ' · mengambil alamat...' : ''))
-      };
-    }
+    if (g) return { ok: true, teks: 'GPS ±' + Math.round(g.akurasi) + ' m' };
     var t = AK.lokasi.terakhir();
-    if (posisi.galat && !t) return { ok: false, teks: posisi.galat };
-    if (t && t.akurasi > akurasiMaks()) {
-      return { ok: false, teks: 'Sinyal GPS lemah (akurasi ' + Math.round(t.akurasi) + ' m). Tunggu sebentar di tempat terbuka.' };
-    }
-    return {
-      ok: false,
-      teks: Date.now() - posisi.mulai > 20000
-        ? 'Lokasi belum ditemukan. Pastikan GPS menyala, lalu tunggu sebentar di tempat terbuka.'
-        : 'Mencari lokasi. Pastikan GPS (lokasi) di HP menyala.'
-    };
+    if (posisi.galat && !t) return { ok: false, galat: true, teks: posisi.galat };
+    if (t && t.akurasi > akurasiMaks()) return { ok: false, teks: 'GPS lemah ±' + Math.round(t.akurasi) + ' m' };
+    return { ok: false, teks: Date.now() - posisi.mulai > 20000 ? 'GPS belum ditemukan' : 'Mencari GPS...' };
+  }
+
+  // Kalau alamat sedang diambil, foto menunggu sebentar (paling lama 3 detik) supaya alamat ikut tercetak.
+  function tungguAlamat() {
+    return new Promise(function (selesai) {
+      var mulai = Date.now();
+      (function cek() {
+        var a = posisi.alamat;
+        if (!a || a.status !== 'cari' || Date.now() - mulai > 3000) { selesai(); return; }
+        w.setTimeout(cek, 150);
+      })();
+    });
   }
 
   // ---------- Isi cap foto ----------
@@ -129,9 +127,10 @@
     var jepret = $('kamera-jepret');
     var batal = $('kamera-batal');
     var senter = $('kamera-senter');
-    bingkai.className = 'bingkai';
-    util.kosongkan(bingkai).appendChild(h('span', { text: opsi.teksBingkai }));
+    bingkai.hidden = false;
+    $('kamera-nama').textContent = opsi.nama || '';
     pesan.textContent = 'Membuka kamera...';
+    senter.setAttribute('aria-pressed', 'false');
     jepret.hidden = false;
     jepret.disabled = true;
     senter.hidden = true;
@@ -152,7 +151,7 @@
       batal.onclick = function () { akhiri(null); };
       senter.onclick = function () {
         nyala = !nyala;
-        AK.kamera.senter(nyala).then(function (ok) { senter.textContent = ok && nyala ? 'Senter mati' : 'Senter'; });
+        AK.kamera.senter(nyala).then(function (ok) { senter.setAttribute('aria-pressed', ok && nyala ? 'true' : 'false'); });
       };
       AK.kamera.buka(video, opsi.arah).then(function () {
         if (beres) { AK.kamera.tutup(); return; }
@@ -163,18 +162,21 @@
           // Foto hanya diambil kalau lokasi sudah terbaca, supaya koordinat selalu tercetak.
           var gps = AK.lokasi.bagus();
           if (!gps) {
-            pesan.textContent = 'Menunggu lokasi terbaca. Tekan Ambil Foto lagi sebentar lagi.';
+            pesan.textContent = 'Menunggu GPS...';
             return;
           }
           jepret.disabled = true;
-          pesan.textContent = 'Memproses foto...';
+          pesan.textContent = 'Memproses...';
           var waktu = AK.waktu.sekarang();
-          var info = opsi.info(waktu, gps);
-          var kanvas = AK.kamera.cap(AK.kamera.jepret(video), info);
-          AK.kamera.kompres(kanvas).then(function (foto) {
-            akhiri({ dataUrl: foto.dataUrl, ukuran: foto.ukuran, waktu: waktu, gps: gps, alamat: info.alamat || '' });
-          }, function () {
-            pesan.textContent = 'Foto gagal diproses. Coba ambil lagi.';
+          var gambarVideo = AK.kamera.jepret(video);
+          tungguAlamat().then(function () {
+            var info = opsi.info(waktu, gps);
+            var kanvas = AK.kamera.cap(gambarVideo, info);
+            return AK.kamera.kompres(kanvas).then(function (foto) {
+              akhiri({ dataUrl: foto.dataUrl, ukuran: foto.ukuran, waktu: waktu, gps: gps, alamat: info.alamat || '' });
+            });
+          }).catch(function () {
+            pesan.textContent = 'Gagal memproses foto. Coba lagi.';
             jepret.disabled = false;
           });
         };
@@ -219,61 +221,50 @@
   function mintaBatal() {
     if (!alur) { AK.app.beranda(); return; }
     if (!alur.foto || alur.hasil) { kembaliKeDaftar(); return; }
-    AK.app.tanya('Batalkan absen?', 'Foto ' + alur.orang.nama + ' belum dikirim dan akan dihapus.', 'Ya, batalkan', 'Lanjutkan absen')
+    AK.app.tanya('Batalkan absen?', 'Foto belum dikirim.', 'Batalkan', 'Lanjutkan')
       .then(function (ya) { if (ya) kembaliKeDaftar(); });
   }
 
   function teksJabatan(o) {
-    return o.jabatan + (o.nopol ? ' · ' + AK.kamera.nopolCap(o.nopol) : '') + ' · ' + o.id;
-  }
-
-  function teksStatus(st) {
-    if (st.keadaan === 'MASUK') {
-      return 'Sudah absen masuk jam ' + util.jam(st.masuk) +
-        (st.statusMasuk === 'Telat' ? ' (telat ' + st.menitTelat + ' menit)' : '') + (st.tertunda ? ', belum terkirim' : '');
-    }
-    if (st.keadaan === 'PULANG') {
-      return 'Sudah absen masuk jam ' + util.jam(st.masuk) + ' dan pulang jam ' + util.jam(st.pulang) +
-        (st.tertunda ? ', belum terkirim' : '');
-    }
-    return st.izin ? 'Tercatat ' + st.izin.jenis + ' hari ini' : 'Belum absen hari ini';
+    return o.jabatan + (o.nopol ? ' · ' + AK.kamera.nopolCap(o.nopol) : '');
   }
 
   function gambar() {
     var wadah = util.kosongkan($('isi-alur'));
     var o = alur.orang;
     var st = alur.st;
-    wadah.appendChild(h('h1', { text: alur.jenis === 'pulang' ? 'Absen Pulang' : (alur.jenis ? 'Absen Masuk' : 'Absen') }));
-    wadah.appendChild(h('div', { class: 'kartu profil' }, [
-      h('div', { class: 'nama', text: o.nama }),
-      h('div', { class: 'jabatan', text: teksJabatan(o) }),
-      h('div', { class: 'status-rinci', text: alur.hasil && alur.hasil.status === 'disimpan' ? 'Absen tersimpan di HP' : teksStatus(st) })
+    var judul = alur.jenis === 'pulang' ? 'Absen Pulang' : (alur.jenis === 'masuk' ? 'Absen Masuk' : 'Absen');
+    wadah.appendChild(h('div', { class: 'alur-atas' }, [
+      h('button', { type: 'button', class: 'ikon-btn', 'aria-label': 'Kembali', onclick: mintaBatal }, [util.ikon('kembali')]),
+      h('div', { class: 'alur-judul', text: judul })
+    ]));
+    wadah.appendChild(h('div', { class: 'orang' }, [
+      h('span', { class: 'avatar besar', text: util.inisial(o.nama) }),
+      h('div', { class: 'orang-teks' }, [
+        h('div', { class: 'orang-nama', text: o.nama }),
+        h('div', { class: 'orang-sub', text: teksJabatan(o) })
+      ]),
+      alur.hasil ? null : AK.app.chipStatus(o, st)
     ]));
 
     if (alur.hasil) { gambarHasil(wadah); return; }
     if (!alur.jenis) {
-      wadah.appendChild(h('div', { class: 'kotak-pesan hijau', text: amt(o.jabatan)
-        ? 'AMT cukup absen masuk sekali sehari. Absen ' + o.nama + ' hari ini sudah tercatat.'
-        : 'Absen masuk dan pulang ' + o.nama + ' hari ini sudah tercatat.' }));
-      AK.app.isiBar([h('button', { type: 'button', class: 'tombol', text: 'Kembali ke Daftar', onclick: kembaliKeDaftar })]);
+      var teks = st.keadaan === 'PULANG' ? 'Sudah absen pulang ' + util.jam(st.pulang) : 'Sudah absen masuk ' + util.jam(st.masuk);
+      wadah.appendChild(h('div', { class: 'info' }, [util.ikon('centang'), h('span', { text: teks })]));
+      AK.app.isiBar([h('button', { type: 'button', class: 'tombol', text: 'Kembali', onclick: kembaliKeDaftar })]);
       return;
     }
-    if (st.izin) {
-      wadah.appendChild(h('div', { class: 'kotak-pesan biasa', text: o.nama + ' tercatat ' + st.izin.jenis +
-        ' hari ini. Absen tetap bisa dilakukan kalau orangnya hadir.' }));
-    }
-    wadah.appendChild(h('div', { id: 'alur-lokasi', class: 'kotak-pesan biasa', text: '' }));
     if (alur.foto) {
-      wadah.appendChild(h('img', { class: 'foto-hasil', src: alur.foto.dataUrl, alt: 'Hasil selfie ' + o.nama }));
-      wadah.appendChild(h('p', { class: 'kecil', text: 'Periksa foto. Wajah harus terlihat jelas. Kalau sudah benar, tekan Kirim.' }));
+      wadah.appendChild(h('img', { class: 'foto-hasil', src: alur.foto.dataUrl, alt: 'Foto ' + o.nama }));
       AK.app.isiBar([
-        h('button', { type: 'button', class: 'tombol kedua', text: 'Ulangi Foto', onclick: ambilFoto }),
-        h('button', { type: 'button', id: 'btn-kirim', class: 'tombol', text: alur.jenis === 'pulang' ? 'Kirim Pulang' : 'Kirim Masuk', onclick: kirim })
+        h('button', { type: 'button', class: 'tombol kedua', text: 'Ulangi', onclick: ambilFoto }),
+        h('button', { type: 'button', id: 'btn-kirim', class: 'tombol', text: 'Kirim', onclick: kirim })
       ]);
     } else {
-      wadah.appendChild(h('p', { text: 'Minta ' + o.nama + ' memegang HP lalu selfie dengan kamera depan. Wajah harus terlihat jelas.' }));
-      wadah.appendChild(h('button', { type: 'button', id: 'btn-kamera', class: 'tombol besar', text: 'Buka Kamera Depan', onclick: ambilFoto }));
-      AK.app.isiBar([h('button', { type: 'button', class: 'tombol kedua', text: 'Kembali ke Daftar', onclick: mintaBatal })]);
+      wadah.appendChild(h('div', { id: 'alur-lokasi', class: 'gps alur-gps' }));
+      wadah.appendChild(h('button', { type: 'button', id: 'btn-kamera', class: 'tombol besar', onclick: ambilFoto },
+        [util.ikon('kamera'), h('span', { text: 'Buka Kamera' })]));
+      AK.app.tutupBar();
     }
     perbaruiLokasiAlur();
     w.scrollTo(0, 0);
@@ -286,21 +277,23 @@
   }
 
   function perbaruiLokasiAlur() {
-    var el = $('alur-lokasi');
-    if (!el || !alur) return;
+    if (!alur) return;
     var k = keadaanLokasi();
-    el.className = 'kotak-pesan ' + (k.ok ? 'hijau' : (posisi.galat ? 'merah' : 'biasa'));
-    el.textContent = k.teks;
+    var el = $('alur-lokasi');
+    if (el) {
+      el.className = 'gps alur-gps ' + (k.ok ? 'ok' : (k.galat ? 'galat' : 'tunggu'));
+      el.textContent = k.teks;
+    }
     var bk = $('btn-kamera');
     if (bk) {
       bk.className = 'tombol besar' + (k.ok ? '' : ' nonaktif');
       bk.setAttribute('aria-disabled', k.ok ? 'false' : 'true');
     }
-    var kirimSiap = !!gpsKirim();
     var bs = $('btn-kirim');
     if (bs && !bs.disabled) {
-      bs.className = 'tombol' + (kirimSiap ? '' : ' nonaktif');
-      bs.setAttribute('aria-disabled', kirimSiap ? 'false' : 'true');
+      var siap = !!gpsKirim();
+      bs.className = 'tombol' + (siap ? '' : ' nonaktif');
+      bs.setAttribute('aria-disabled', siap ? 'false' : 'true');
     }
   }
   pendengarLokasi.push(perbaruiLokasiAlur);
@@ -309,12 +302,12 @@
     if (!alur) return;
     var k = keadaanLokasi();
     if (!k.ok) {
-      AK.app.pesan('Lokasi belum terbaca', k.teks + '\n\nKoordinat dan alamat harus tercetak di foto, jadi tunggu sampai lokasi terbaca.');
+      AK.app.pesan('GPS belum siap', k.teks);
       return;
     }
     var o = alur.orang;
     var label = alur.jenis === 'pulang' ? 'ABSEN PULANG' : 'ABSEN MASUK';
-    bukaKameraLayar({ arah: 'user', teksBingkai: 'Wajah ' + o.nama + ' harus terlihat jelas',
+    bukaKameraLayar({ arah: 'user', nama: o.nama,
       info: function (waktu, gps) { return infoCap(label, o, waktu, gps); } }).then(function (foto) {
       if (!foto || !alur) return;
       alur.foto = foto;
@@ -337,7 +330,7 @@
     var o = alur.orang;
     var g = gpsKirim();
     if (!g) {
-      AK.app.pesan('Lokasi belum terbaca', 'Tunggu sinyal GPS di tempat terbuka, lalu tekan Kirim lagi.');
+      AK.app.pesan('GPS belum siap', 'Tunggu sebentar lalu kirim lagi.');
       return;
     }
     var tombol = $('btn-kirim');
@@ -384,23 +377,25 @@
 
   function gambarHasil(wadah) {
     var x = alur.hasil;
-    var o = alur.orang;
     if (x.status !== 'disimpan') {
-      wadah.appendChild(h('div', { class: 'kotak-pesan merah', text: 'Data tidak bisa disimpan di HP. Ulangi absen.' }));
-      AK.app.isiBar([h('button', { type: 'button', class: 'tombol', text: 'Kembali ke Daftar', onclick: kembaliKeDaftar })]);
+      wadah.appendChild(h('div', { class: 'pesan-galat', text: 'Gagal menyimpan di HP. Ulangi absen.' }));
+      AK.app.isiBar([h('button', { type: 'button', class: 'tombol', text: 'Kembali', onclick: kembaliKeDaftar })]);
       return;
     }
-    var rinci = (x.jenis === 'masuk' ? 'Absen masuk ' : 'Absen pulang ') + o.nama + ' jam ' + util.jam(x.item.dibuat) + ' tersimpan.';
+    var rinci = (x.jenis === 'masuk' ? 'Masuk ' : 'Pulang ') + util.jam(x.item.dibuat);
     if (x.jenis === 'masuk') {
-      rinci += x.item.ringkas.statusMasuk === 'Telat' ? ' Telat ' + x.item.ringkas.menitTelat + ' menit.' : ' Tepat waktu.';
+      rinci += x.item.ringkas.statusMasuk === 'Telat' ? ' · Telat ' + x.item.ringkas.menitTelat + ' menit' : ' · Tepat waktu';
     }
-    rinci += w.navigator.onLine === false ? ' Data dikirim otomatis saat ada sinyal.' : ' Data sedang dikirim ke server.';
-    wadah.appendChild(h('div', { class: 'kotak-pesan hijau', text: rinci }));
-    if (alur.foto) wadah.appendChild(h('img', { class: 'foto-kecil', src: alur.foto.dataUrl, alt: 'Foto yang disimpan' }));
+    wadah.appendChild(h('div', { class: 'sukses', role: 'status' }, [
+      h('div', { class: 'sukses-ikon' }, [util.ikon('centang')]),
+      h('div', { class: 'sukses-judul', text: 'Tersimpan' }),
+      h('div', { class: 'sukses-rinci', text: rinci }),
+      alur.foto ? h('img', { class: 'sukses-foto', src: alur.foto.dataUrl, alt: '' }) : null,
+      h('div', { class: 'mundur' }, [h('span')])
+    ]));
     var lanjut = function () { kembaliKeDaftar(true); };
-    AK.app.isiBar([h('button', { type: 'button', class: 'tombol', text: 'Lanjut ke Nama Berikutnya', onclick: lanjut })]);
-    wadah.appendChild(h('p', { class: 'kecil', text: 'Kembali ke daftar nama dalam 2 detik.' }));
-    timerKembali = w.setTimeout(function () { timerKembali = null; if (alur && alur.hasil === x) lanjut(); }, 2000);
+    AK.app.isiBar([h('button', { type: 'button', class: 'tombol', text: 'Berikutnya', onclick: lanjut })]);
+    timerKembali = w.setTimeout(function () { timerKembali = null; if (alur && alur.hasil === x) lanjut(); }, 1600);
   }
 
   AK.alur = {

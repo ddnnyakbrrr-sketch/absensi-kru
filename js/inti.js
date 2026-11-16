@@ -1,7 +1,7 @@
 /*
  * Absensi Kru Mobil Tangki
  * Hak Cipta (c) 2026 Deny Akbar
- * Versi V2.1
+ * Versi V2.2
  *
  * Fungsi inti: format tanggal WIB, jam server, penyimpanan di HP, ID HP, dan pemanggilan server.
  */
@@ -80,7 +80,42 @@
       });
       return el;
     },
-    kosongkan: function (el) { while (el.firstChild) el.removeChild(el.firstChild); return el; }
+    kosongkan: function (el) { while (el.firstChild) el.removeChild(el.firstChild); return el; },
+    // Ikon garis sederhana (SVG 24x24). Warna mengikuti warna teks elemen induknya.
+    ikon: function (nama) {
+      var NS = 'http://www.w3.org/2000/svg';
+      var svg = document.createElementNS(NS, 'svg');
+      svg.setAttribute('viewBox', '0 0 24 24');
+      svg.setAttribute('class', 'ikon');
+      svg.setAttribute('aria-hidden', 'true');
+      svg.setAttribute('focusable', 'false');
+      (IKON[nama] || []).forEach(function (d) {
+        var p = document.createElementNS(NS, 'path');
+        p.setAttribute('d', d);
+        svg.appendChild(p);
+      });
+      return svg;
+    },
+    // Dua huruf awal nama untuk lingkaran inisial.
+    inisial: function (nama) {
+      var kata = String(nama || '').replace(/[^A-Za-z\s]/g, ' ').trim().split(/\s+/).filter(function (x) { return x.length > 1; });
+      if (!kata.length) return '?';
+      return (kata[0][0] + (kata[1] ? kata[1][0] : (kata[0][1] || ''))).toUpperCase();
+    }
+  };
+
+  var IKON = {
+    cari: ['M10.5 4a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13z', 'M15.5 15.5L20 20'],
+    muat: ['M19.5 12a7.5 7.5 0 1 1-2.2-5.3', 'M19.5 4.5v4h-4'],
+    keluar: ['M14 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4', 'M10 16l-4-4 4-4', 'M6 12h10'],
+    kembali: ['M19 12H5', 'M11 18l-6-6 6-6'],
+    tutup: ['M6 6l12 12', 'M18 6L6 18'],
+    centang: ['M5 12.5l4.5 4.5L19 7.5'],
+    kamera: ['M4 8.5h3.2L9 6h6l1.8 2.5H20V19H4z', 'M12 10.5a3.25 3.25 0 1 0 0 6.5 3.25 3.25 0 0 0 0-6.5z'],
+    mata: ['M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z', 'M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z'],
+    'mata-tutup': ['M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z', 'M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z', 'M4 4l16 16'],
+    senter: ['M13 3L5 13.5h6L10 21l8-10.5h-6z'],
+    lokasi: ['M12 21s-6.5-5.8-6.5-10.5a6.5 6.5 0 0 1 13 0C18.5 15.2 12 21 12 21z', 'M12 8.2a2.3 2.3 0 1 0 0 4.6 2.3 2.3 0 0 0 0-4.6z']
   };
 
   // ---------- Penyimpanan kecil (localStorage) ----------
@@ -238,7 +273,7 @@
     panggil: function (aksi, data, opsi) {
       opsi = opsi || {};
       if (!api.siap()) {
-        return Promise.reject(galat('Alamat server belum diisi di config.js. Hubungi admin.', { kode: 'KONFIG' }));
+        return Promise.reject(galat('Alamat server belum diisi di config.js.', { kode: 'KONFIG' }));
       }
       var isi = JSON.stringify(Object.assign({ aksi: aksi, versi: KONFIG.VERSI }, data || {}));
       var kendali = w.AbortController ? new w.AbortController() : null;
@@ -252,15 +287,15 @@
         cache: 'no-store',
         signal: kendali ? kendali.signal : undefined
       }).then(function (res) {
-        if (!res.ok) throw galat('Server tidak merespons (kode ' + res.status + '). Coba lagi nanti.', { jaringan: true });
+        if (!res.ok) throw galat('Server tidak merespons (kode ' + res.status + ').', { jaringan: true });
         return res.text();
       }, function () {
-        throw galat('Tidak ada sinyal atau koneksi terputus.', { jaringan: true });
+        throw galat('Tidak ada sinyal.', { jaringan: true });
       }).then(function (teks) {
         w.clearTimeout(batas);
         var json;
         try { json = JSON.parse(teks); } catch (e) {
-          throw galat('Balasan server tidak terbaca. Kalau terus terjadi, hubungi admin.', { jaringan: true });
+          throw galat('Balasan server tidak terbaca.', { jaringan: true });
         }
         if (json.waktuServer) waktu.catat(json.waktuServer, mulai, w.performance.now());
         if (json.tokenBaru) sesi.perbarui({ tokenBaru: json.tokenBaru });
@@ -268,7 +303,7 @@
         return json;
       }, function (e) {
         w.clearTimeout(batas);
-        if (!e || !e.pesan) throw galat('Koneksi terputus saat menerima balasan server.', { jaringan: true });
+        if (!e || !e.pesan) throw galat('Koneksi terputus.', { jaringan: true });
         throw e;
       });
     }

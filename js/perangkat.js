@@ -1,7 +1,7 @@
 /*
  * Absensi Kru Mobil Tangki
  * Hak Cipta (c) 2026 Deny Akbar
- * Versi V2.1
+ * Versi V2.2
  *
  * Akses perangkat HP: GPS, kamera (tanpa galeri), cap foto, dan kompres foto.
  */
@@ -12,11 +12,9 @@
 
   // ---------- GPS ----------
   function pesanGalatLokasi(e) {
-    if (e && e.code === 1) {
-      return 'Izin lokasi ditolak. Buka pengaturan browser, izinkan lokasi untuk aplikasi ini, lalu coba lagi.';
-    }
-    if (e && e.code === 2) return 'Lokasi belum aktif. Nyalakan lokasi (GPS) di HP lalu coba lagi.';
-    return 'Lokasi belum ditemukan. Pindah ke tempat terbuka, tunggu sebentar, lalu coba lagi.';
+    if (e && e.code === 1) return 'Izin lokasi ditolak';
+    if (e && e.code === 2) return 'GPS mati';
+    return 'GPS belum ditemukan';
   }
 
   function jarakMeter(a, b) {
@@ -38,7 +36,7 @@
     mulai: function (batasAkurasi, cb) {
       lokasi.berhenti();
       if (!w.navigator.geolocation) {
-        cb({ galat: 'HP ini tidak bisa membaca lokasi. Pakai HP lain atau hubungi admin.' });
+        cb({ galat: 'HP tidak mendukung GPS' });
         return;
       }
       lokasi._id = w.navigator.geolocation.watchPosition(function (p) {
@@ -249,15 +247,15 @@
   function galatKamera(e) {
     var n = e && e.name;
     if (n === 'NotAllowedError' || n === 'SecurityError' || n === 'PermissionDeniedError') {
-      return AK.galat('Izin kamera ditolak. Buka pengaturan browser, izinkan kamera untuk aplikasi ini, lalu coba lagi.');
+      return AK.galat('Izin kamera ditolak. Izinkan kamera di pengaturan browser.');
     }
     if (n === 'NotFoundError' || n === 'DevicesNotFoundError' || n === 'OverconstrainedError') {
-      return AK.galat('Kamera tidak ditemukan di HP ini.');
+      return AK.galat('Kamera tidak ditemukan.');
     }
     if (n === 'NotReadableError' || n === 'TrackStartError' || n === 'AbortError') {
-      return AK.galat('Kamera sedang dipakai aplikasi lain. Tutup aplikasi lain yang memakai kamera, lalu coba lagi.');
+      return AK.galat('Kamera sedang dipakai aplikasi lain.');
     }
-    return AK.galat((e && e.pesan) || 'Kamera tidak bisa dibuka. Tutup aplikasi, buka lagi, lalu coba lagi.');
+    return AK.galat((e && e.pesan) || 'Tutup aplikasi lalu buka lagi.');
   }
 
   function tungguVideo(video) {
@@ -265,7 +263,7 @@
       var mulai = Date.now();
       (function cek() {
         if (video.videoWidth > 0 && video.readyState >= 2) return ok();
-        if (Date.now() - mulai > 10000) return gagal(AK.galat('Kamera tidak menampilkan gambar. Tutup aplikasi, buka lagi, lalu coba lagi.'));
+        if (Date.now() - mulai > 10000) return gagal(AK.galat('Kamera tidak menampilkan gambar. Tutup aplikasi lalu buka lagi.'));
         w.setTimeout(cek, 100);
       })();
     });
@@ -299,7 +297,7 @@
     buka: function (video, arah) {
       kamera.tutup();
       if (!w.navigator.mediaDevices || !w.navigator.mediaDevices.getUserMedia) {
-        return Promise.reject(AK.galat('Kamera tidak tersedia. Buka aplikasi lewat Chrome (Android) atau Safari (iPhone) dengan alamat https.'));
+        return Promise.reject(AK.galat('Buka aplikasi lewat Chrome dengan alamat https.'));
       }
       var md = w.navigator.mediaDevices;
       return md.getUserMedia({

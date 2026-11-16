@@ -1,7 +1,7 @@
 /*
  * Absensi Kru Mobil Tangki
  * Hak Cipta (c) 2026 Deny Akbar
- * Versi V2.1
+ * Versi V2.2
  *
  * Tampilan utama: masuk admin, daftar nama kru dan karyawan, data yang belum terkirim,
  * pemberitahuan, dan pemasangan aplikasi.
@@ -43,6 +43,8 @@
   app.tampilkan = function (id, tanpaHistori) {
     ['v-login', 'v-beranda', 'v-alur'].forEach(function (v) { $(v).hidden = v !== id; });
     d.body.classList.toggle('halaman-masuk', id === 'v-login');
+    $('appbar').hidden = id === 'v-login';
+    $('appbar-aksi').hidden = id !== 'v-beranda';
     if (id !== 'v-alur') app.tutupBar();
     if (id !== 'v-login' && id !== 'v-beranda' && !tanpaHistori) w.history.pushState({ v: id }, '');
     tampilanAktif = id;
@@ -104,21 +106,18 @@
       var tolak = daftar.filter(function (x) { return x.status === 'ditolak'; });
       kotak.appendChild(h('h2', { text: 'Data di HP' }));
       if (!daftar.length) kotak.appendChild(h('div', { class: 'isi', text: 'Semua data sudah terkirim.' }));
-      if (tunggu.length) {
-        kotak.appendChild(h('div', { class: 'isi', text: 'Data ini tersimpan di HP dan dikirim otomatis saat ada sinyal.' }));
-      }
       tunggu.forEach(function (it) {
-        kotak.appendChild(h('div', { class: 'kartu' }, [
-          h('div', { class: 'baris-judul' }, [h('strong', { text: it.ringkas.judul }), chip('Belum terkirim', 'biru')]),
-          h('div', { class: 'kecil', text: util.tanggalPendek(it.dibuat) + ' jam ' + util.jam(it.dibuat) }),
-          it.pesan ? h('div', { class: 'kecil', text: 'Percobaan terakhir: ' + it.pesan }) : null
+        kotak.appendChild(h('div', { class: 'item-antrian' }, [
+          h('div', { class: 'baris-judul' }, [h('span', { text: it.ringkas.judul }), chip('Menunggu', 'biru')]),
+          h('div', { class: 'kecil', text: util.tanggalPendek(it.dibuat) + ', ' + util.jam(it.dibuat) }),
+          it.pesan ? h('div', { class: 'kecil', text: it.pesan }) : null
         ]));
       });
       tolak.forEach(function (it) {
-        kotak.appendChild(h('div', { class: 'kartu' }, [
-          h('div', { class: 'baris-judul' }, [h('strong', { text: it.ringkas.judul }), chip('Ditolak', 'merah')]),
+        kotak.appendChild(h('div', { class: 'item-antrian' }, [
+          h('div', { class: 'baris-judul' }, [h('span', { text: it.ringkas.judul }), chip('Ditolak', 'merah')]),
           h('p', { class: 'teks-merah', text: it.pesan }),
-          h('button', { type: 'button', class: 'tombol kedua', text: 'Hapus dari HP', onclick: function () {
+          h('button', { type: 'button', class: 'tombol kedua', text: 'Hapus', onclick: function () {
             AK.antrian.hapus(it.idKirim).then(function () { app.perbaruiPita(); app.lihatAntrian(); });
           } })
         ]));
@@ -155,7 +154,7 @@
     if (adaVersiBaru) {
       pita.hidden = false;
       pita.className = 'pita versi';
-      pita.textContent = 'Versi baru tersedia, ketuk untuk muat ulang';
+      pita.textContent = 'Versi baru tersedia. Ketuk untuk memperbarui.';
       pita.onclick = pakaiVersiBaru;
       return Promise.resolve();
     }
@@ -167,19 +166,20 @@
       var tunggu = daftar.filter(function (x) { return x.status === 'menunggu'; }).length;
       var tolak = daftar.filter(function (x) { return x.status === 'ditolak'; }).length;
       pita.onclick = function () { app.lihatAntrian(); };
+      var offline = w.navigator.onLine === false;
       if (tunggu) {
         pita.hidden = false;
-        pita.className = 'pita';
-        pita.textContent = (AK.antrian.sedangMengirim() && w.navigator.onLine !== false ? 'Sedang mengirim, ' : 'Menunggu sinyal, ') +
-          tunggu + ' data belum terkirim';
+        pita.className = offline ? 'pita' : 'pita kirim';
+        pita.textContent = offline ? 'Tidak ada sinyal. ' + tunggu + ' data menunggu dikirim.'
+          : (AK.antrian.sedangMengirim() ? 'Mengirim ' + tunggu + ' data...' : tunggu + ' data belum terkirim');
       } else if (tolak) {
         pita.hidden = false;
         pita.className = 'pita merah';
-        pita.textContent = tolak + ' data ditolak server. Ketuk untuk melihat.';
-      } else if (w.navigator.onLine === false) {
+        pita.textContent = tolak + ' data ditolak. Ketuk untuk melihat.';
+      } else if (offline) {
         pita.hidden = false;
         pita.className = 'pita';
-        pita.textContent = 'Tidak ada sinyal. Absen tetap bisa dilakukan dan dikirim nanti.';
+        pita.textContent = 'Tidak ada sinyal';
       } else {
         pita.hidden = true;
       }
@@ -226,12 +226,8 @@
       e.preventDefault();
       masuk();
     });
-    var ios = /iphone|ipad|ipod/i.test(w.navigator.userAgent) ||
-      (w.navigator.platform === 'MacIntel' && w.navigator.maxTouchPoints > 1);
-    var mandiri = w.navigator.standalone === true || (w.matchMedia && w.matchMedia('(display-mode: standalone)').matches);
-    $('info-ios').hidden = !(ios && !mandiri);
     if (!AK.api.siap()) {
-      $('pesan-login').className = 'kotak-pesan merah';
+      $('pesan-login').className = 'pesan-galat';
       $('pesan-login').textContent = 'Alamat server belum diisi di config.js.';
       $('pesan-login').hidden = false;
     }
@@ -240,23 +236,24 @@
   function aturLihatPin(lihat) {
     var b = $('btn-lihat-pin');
     $('in-pin').type = lihat ? 'text' : 'password';
-    b.textContent = lihat ? 'Sembunyikan' : 'Lihat';
+    util.kosongkan(b).appendChild(util.ikon(lihat ? 'mata-tutup' : 'mata'));
     b.setAttribute('aria-pressed', lihat ? 'true' : 'false');
+    b.setAttribute('aria-label', lihat ? 'Sembunyikan PIN' : 'Tampilkan PIN');
   }
 
   function masuk() {
     var pin = $('in-pin').value.trim();
     var kotak = $('pesan-login');
     var tombol = $('btn-masuk');
-    function tampil(pesan, jenis) {
+    function tampil(pesan) {
       kotak.hidden = false;
-      kotak.className = 'kotak-pesan ' + (jenis || 'merah');
+      kotak.className = 'pesan-galat';
       kotak.textContent = pesan;
     }
-    if (!/^\d{6}$/.test(pin)) return tampil('PIN admin harus 6 angka.');
+    if (!/^\d{6}$/.test(pin)) return tampil('PIN harus 6 angka.');
     tombol.disabled = true;
     tombol.textContent = 'Memeriksa...';
-    tampil('Menghubungi server...', 'biasa');
+    kotak.hidden = true;
     AK.idHp.siapkan().then(function (idHp) {
       return AK.api.panggil('login', { pin: pin, idHp: idHp });
     }).then(function (hasil) {
@@ -274,7 +271,7 @@
       app.beranda();
       AK.antrian.proses();
     }).catch(function (e) {
-      tampil(e.jaringan ? 'Tidak ada sinyal. Masuk butuh internet. Cari sinyal lalu coba lagi.' : e.pesan);
+      tampil(e.jaringan ? 'Tidak ada sinyal. Coba lagi.' : e.pesan);
     }).then(function () {
       tombol.disabled = false;
       tombol.textContent = 'Masuk';
@@ -284,10 +281,8 @@
   app.keluar = function () {
     AK.antrian.milikSesi().then(function (daftar) {
       var tunggu = daftar.filter(function (x) { return x.status === 'menunggu'; }).length;
-      var isi = tunggu
-        ? 'Masih ada ' + tunggu + ' data yang belum terkirim. Data tetap tersimpan di HP dan dikirim setelah Anda masuk lagi.\n\nTetap keluar?'
-        : 'Keluar dari akun admin? Untuk masuk lagi perlu PIN admin.';
-      return app.tanya('Keluar', isi, 'Keluar', 'Batal');
+      var isi = tunggu ? tunggu + ' data belum terkirim dan tetap tersimpan di HP.' : '';
+      return app.tanya('Keluar dari akun admin?', isi, 'Keluar', 'Batal');
     }).then(function (ya) {
       if (!ya) return;
       AK.sesi.hapus();
@@ -338,14 +333,18 @@
 
   function normal(t) { return String(t || '').toUpperCase().replace(/\s+/g, ' ').trim(); }
 
+  // Biru = belum diterima server, hijau = tercatat, merah = telat.
   function chipStatus(o, st) {
     if (st.keadaan === 'MASUK') {
-      return chip('Masuk ' + util.jam(st.masuk), st.tertunda ? 'biru' : (st.statusMasuk === 'Telat' ? 'merah' : 'hijau'));
+      var telat = st.statusMasuk === 'Telat';
+      return chip((telat ? 'Telat ' : 'Masuk ') + util.jam(st.masuk), st.tertunda ? 'biru' : (telat ? 'merah' : 'hijau'));
     }
     if (st.keadaan === 'PULANG') return chip('Pulang ' + util.jam(st.pulang), st.tertunda ? 'biru' : 'hijau');
     if (st.izin) return chip(st.izin.jenis, 'biru');
-    return chip('Belum absen');
+    return chip('Belum');
   }
+
+  app.chipStatus = chipStatus;
 
   function gambarDaftar() {
     var s = AK.sesi.ambil();
@@ -353,7 +352,8 @@
     $('tgl-hari').textContent = util.tanggalPendek(AK.waktu.sekarang());
     var semua = (s.kru || []).map(function (o) { return { o: o, st: app.statusOrang(s, o, antrianTerakhir) }; });
     var sudah = semua.filter(function (x) { return x.st.keadaan !== 'BELUM'; }).length;
-    $('hitung-hadir').textContent = 'Sudah absen ' + sudah + ' dari ' + semua.length + ' orang';
+    $('hitung-hadir').textContent = sudah + '/' + semua.length;
+    $('progres-hadir').style.width = (semua.length ? Math.round(sudah / semua.length * 100) : 0) + '%';
     var cari = normal($('cari').value);
     var cariNopol = cari.replace(/[\s-]/g, '');
     var tampil = semua.filter(function (x) {
@@ -364,11 +364,12 @@
     }).sort(function (a, b) { return a.o.nama.localeCompare(b.o.nama, 'id'); });
     var ul = util.kosongkan($('daftar-kru'));
     if (!tampil.length) {
-      ul.appendChild(h('li', { class: 'kosong', text: cari ? 'Nama atau nopol "' + $('cari').value.trim() + '" tidak ditemukan.' : 'Belum ada nama di daftar.' }));
+      ul.appendChild(h('li', { class: 'kosong', text: cari ? 'Tidak ditemukan' : 'Belum ada nama' }));
       return;
     }
     tampil.forEach(function (x) {
       ul.appendChild(h('li', null, [h('button', { type: 'button', class: 'item-kru', onclick: function () { AK.alur.buka(x.o, x.st); } }, [
+        h('span', { class: 'avatar', text: util.inisial(x.o.nama) }),
         h('span', { class: 'item-teks' }, [
           h('span', { class: 'item-nama', text: x.o.nama }),
           h('span', { class: 'item-sub', text: x.o.jabatan + (x.o.nopol ? ' · ' + AK.kamera.nopolCap(x.o.nopol) : '') })
@@ -389,7 +390,7 @@
     if (!el) return;
     var k = AK.alur.keadaanLokasi();
     el.textContent = k.teks;
-    el.className = 'info-lokasi ' + (k.ok ? 'ok' : 'tunggu');
+    el.className = 'gps ' + (k.ok ? 'ok' : (k.galat ? 'galat' : 'tunggu'));
   }
 
   function siapkanBeranda() {
@@ -405,12 +406,13 @@
     });
     $('btn-segarkan').addEventListener('click', function () {
       var b = $('btn-segarkan');
+      if (b.disabled) return;
       b.disabled = true;
-      b.textContent = 'Memuat...';
+      b.classList.add('berputar');
       app.sinkron(true).then(function (ok) {
         b.disabled = false;
-        b.textContent = 'Muat ulang daftar';
-        if (ok === false) app.pesan('Daftar belum dimuat ulang', 'Tidak ada sinyal. Daftar akan dimuat ulang saat ada sinyal.');
+        b.classList.remove('berputar');
+        if (ok === false) app.pesan('Tidak ada sinyal', 'Daftar belum diperbarui.');
       });
     });
     $('btn-keluar').addEventListener('click', app.keluar);
@@ -446,15 +448,22 @@
     app.tampilkan('v-login');
     var kotak = $('pesan-login');
     kotak.hidden = false;
-    kotak.className = 'kotak-pesan merah';
-    kotak.textContent = pesan + ' Data yang belum terkirim tetap tersimpan dan dikirim setelah Anda masuk lagi.';
+    kotak.className = 'pesan-galat';
+    kotak.textContent = pesan;
     app.perbaruiPita();
   };
 
   // ---------- Mulai ----------
+  function pasangIkon() {
+    Array.prototype.forEach.call(d.querySelectorAll('[data-ikon]'), function (el) {
+      if (!el.querySelector('svg')) el.appendChild(util.ikon(el.getAttribute('data-ikon')));
+    });
+  }
+
   function mulai() {
     var v = KONFIG.VERSI || '';
     $('kaki').textContent = (KONFIG.HAK_CIPTA || 'Hak Cipta © 2026 Deny Akbar') + ' · ' + v;
+    pasangIkon();
     siapkanLogo();
     siapkanLogin();
     siapkanBeranda();
