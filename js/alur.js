@@ -1,7 +1,7 @@
 /*
  * Absensi Kru Mobil Tangki
  * Hak Cipta (c) 2026 Deny Akbar
- * Versi V1
+ * Versi V1.1
  *
  * Langkah absen masuk dan pulang (lokasi, scan QR, selfie, odometer, P2H, ringkasan)
  * dan kamera layar penuh.

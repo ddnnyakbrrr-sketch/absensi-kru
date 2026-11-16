@@ -1,7 +1,7 @@
 /*
  * Absensi Kru Mobil Tangki
  * Hak Cipta (c) 2026 Deny Akbar
- * Versi V1
+ * Versi V1.1
  *
  * Akses perangkat HP: GPS, kamera (tanpa galeri), cap foto, kompres foto, dan scan QR.
  */

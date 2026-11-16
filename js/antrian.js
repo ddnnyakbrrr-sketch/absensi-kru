@@ -1,7 +1,7 @@
 /*
  * Absensi Kru Mobil Tangki
  * Hak Cipta (c) 2026 Deny Akbar
- * Versi V1
+ * Versi V1.1
  *
  * Antrian kirim: setiap absen disimpan dulu di HP, lalu dikirim berurutan.
  * Kalau sinyal hilang atau server sibuk, data dicoba kirim lagi otomatis.
