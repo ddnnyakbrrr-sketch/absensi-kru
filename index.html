@@ -2,7 +2,7 @@
 <!--
   Absensi Kru Mobil Tangki
   Hak Cipta (c) 2026 Deny Akbar
-  Versi V2.1
+  Versi V2.2
 -->
 <html lang="id">
 <head>
@@ -22,79 +22,74 @@
   <link rel="stylesheet" href="css/app.css">
 </head>
 <body>
-  <header class="kepala">
-    <div class="logo-baris">
-      <img class="logo" src="assets/logo-patra-logistik.png" alt="Logo Patra Logistik">
-      <img class="logo" src="assets/logo-pertamina.png" alt="Logo Pertamina">
+  <header id="appbar" class="appbar">
+    <img class="appbar-logo logo" src="assets/logo-patra-logistik.png" alt="Patra Logistik">
+    <div class="appbar-judul">
+      <div class="appbar-nama">Absensi Kru</div>
+      <div class="appbar-sub">FT Pangkalan Bun</div>
     </div>
-    <div class="nama-aplikasi">Absensi Kru Mobil Tangki</div>
-    <div class="nama-pt">PT Patra Logistik · FT Pangkalan Bun</div>
+    <div id="appbar-aksi" class="appbar-aksi" hidden>
+      <button type="button" id="btn-segarkan" class="ikon-btn" data-ikon="muat" aria-label="Muat ulang daftar" title="Muat ulang daftar"></button>
+      <button type="button" id="btn-keluar" class="ikon-btn" data-ikon="keluar" aria-label="Keluar" title="Keluar"></button>
+    </div>
   </header>
 
   <button type="button" id="pita" class="pita" hidden></button>
 
   <main>
-    <!-- Login -->
+    <!-- Masuk admin -->
     <section id="v-login" hidden>
-      <div class="panel-masuk">
-      <h1>Masuk Admin</h1>
-      <p class="sub">Aplikasi absen ini dipakai di HP admin. Masukkan PIN admin 6 angka.</p>
-      <form id="form-login" autocomplete="on" novalidate>
-        <label for="in-pin">PIN admin</label>
-        <div class="input-pin">
-          <input id="in-pin" name="password" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="6"
-            autocomplete="current-password" placeholder="6 angka">
-          <button type="button" id="btn-lihat-pin" class="lihat" aria-controls="in-pin" aria-pressed="false">Lihat</button>
-        </div>
-        <div id="pesan-login" class="kotak-pesan merah" role="alert" hidden></div>
-        <button type="submit" id="btn-masuk" class="tombol besar" style="margin-top:20px">Masuk</button>
-      </form>
-      <div id="info-ios" class="kotak-pesan biasa" hidden>
-        Di iPhone: pasang dulu aplikasi ke Layar Utama lewat tombol Bagikan di Safari, lalu buka dari ikon
-        Absensi Kru dan masuk dari sana. Akun admin terkunci di tempat Anda pertama kali masuk.
-      </div>
-      <button type="button" id="btn-pasang" class="tombol kedua" style="margin-top:12px" hidden>Pasang Aplikasi di HP</button>
-      <p class="bantuan">Lupa PIN atau ganti HP? Buka spreadsheet, menu Absensi Kru &gt; Atur/Reset PIN admin atau Reset HP admin.</p>
+      <div class="masuk">
+        <img class="masuk-logo logo" src="assets/logo-patra-logistik.png" alt="Patra Logistik">
+        <h1 class="masuk-judul">Masuk Admin</h1>
+        <p class="masuk-sub">Absensi Kru · FT Pangkalan Bun</p>
+        <form id="form-login" autocomplete="on" novalidate>
+          <label for="in-pin" class="label">PIN</label>
+          <div class="input-pin">
+            <input id="in-pin" name="password" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="6"
+              autocomplete="current-password" placeholder="••••••">
+            <button type="button" id="btn-lihat-pin" class="ikon-btn lihat" data-ikon="mata" aria-controls="in-pin"
+              aria-pressed="false" aria-label="Tampilkan PIN"></button>
+          </div>
+          <div id="pesan-login" class="pesan-galat" role="alert" hidden></div>
+          <button type="submit" id="btn-masuk" class="tombol">Masuk</button>
+        </form>
+        <button type="button" id="btn-pasang" class="tombol-teks" hidden>Pasang aplikasi</button>
       </div>
     </section>
 
-    <!-- Beranda -->
+    <!-- Daftar nama -->
     <section id="v-beranda" hidden>
-      <div class="kartu ringkas-hari">
-        <div class="status-kepala">
-          <span>Absen hari ini</span>
-          <span id="tgl-hari"></span>
+      <div class="ringkas">
+        <div class="ringkas-atas">
+          <span id="tgl-hari" class="ringkas-tgl"></span>
+          <span id="info-lokasi" class="gps"></span>
         </div>
-        <div id="hitung-hadir" class="hitung-hadir"></div>
-        <div id="info-lokasi" class="info-lokasi">Mencari lokasi...</div>
+        <div class="ringkas-angka"><span id="hitung-hadir" class="angka"></span><span class="ringkas-label">hadir</span></div>
+        <div class="progres" aria-hidden="true"><span id="progres-hadir"></span></div>
       </div>
-      <label for="cari" class="label-cari">Cari nama atau nopol</label>
-      <input id="cari" type="search" class="input-cari" placeholder="Ketik nama atau nopol" autocomplete="off"
-        autocapitalize="characters" spellcheck="false" enterkeyhint="search">
-      <div class="saring" role="group" aria-label="Saring daftar nama">
+      <div class="cari">
+        <span class="cari-ikon" data-ikon="cari" aria-hidden="true"></span>
+        <input id="cari" type="search" class="input-cari" placeholder="Cari nama atau nopol" aria-label="Cari nama atau nopol"
+          autocomplete="off" autocapitalize="characters" spellcheck="false" enterkeyhint="search">
+      </div>
+      <div class="segmen" role="group" aria-label="Saring daftar">
         <button type="button" class="pilih-saring" data-saring="semua" aria-pressed="true">Semua</button>
         <button type="button" class="pilih-saring" data-saring="amt" aria-pressed="false">AMT</button>
         <button type="button" class="pilih-saring" data-saring="karyawan" aria-pressed="false">Karyawan</button>
       </div>
-      <ul id="daftar-kru" class="daftar-kru"></ul>
-      <p class="bantuan">AMT 1 dan AMT 2 cukup absen masuk. Karyawan absen masuk dan pulang.
-        Izin, sakit, atau cuti dicatat admin lewat spreadsheet.</p>
-      <div class="tautan-bawah">
-        <button type="button" id="btn-segarkan" class="tombol-tautan">Muat ulang daftar</button>
-        <button type="button" id="btn-keluar" class="tombol-tautan">Keluar</button>
-      </div>
+      <ul id="daftar-kru" class="daftar"></ul>
     </section>
 
-    <!-- Alur absen -->
+    <!-- Absen satu orang -->
     <section id="v-alur" hidden>
       <div id="isi-alur"></div>
     </section>
-
   </main>
 
-  <footer id="kaki" class="kaki">Hak Cipta © 2026 Deny Akbar · V2.1</footer>
+  <footer id="kaki" class="kaki">Hak Cipta © 2026 Deny Akbar · V2.2</footer>
 
-  <!-- Tombol Kembali/Lanjut yang tetap di bawah layar saat absen -->
+  <!-- Tombol yang tetap di bawah layar saat absen -->
   <div id="bar-aksi" class="bar-aksi" hidden>
     <div id="bar-isi" class="bar-isi"></div>
   </div>
@@ -102,12 +97,18 @@
   <!-- Kamera layar penuh -->
   <div id="kamera" class="kamera" hidden>
     <video id="kamera-video" playsinline muted autoplay></video>
-    <div id="kamera-bingkai" class="bingkai"></div>
-    <div id="kamera-pesan" class="kamera-pesan"></div>
+    <div id="kamera-bingkai" class="kamera-oval" aria-hidden="true"></div>
+    <div class="kamera-atas">
+      <span id="kamera-nama" class="kamera-nama"></span>
+      <button type="button" id="kamera-batal" class="ikon-btn terang" data-ikon="tutup" aria-label="Tutup kamera"></button>
+    </div>
+    <div id="kamera-pesan" class="kamera-pesan" role="status"></div>
     <div class="kamera-bawah">
-      <button type="button" id="kamera-batal" class="tombol kedua">Batal</button>
-      <button type="button" id="kamera-jepret" class="tombol jepret">Ambil Foto</button>
-      <button type="button" id="kamera-senter" class="tombol kedua" hidden>Senter</button>
+      <span class="kamera-sisi"></span>
+      <button type="button" id="kamera-jepret" class="rana" aria-label="Ambil foto"></button>
+      <span class="kamera-sisi">
+        <button type="button" id="kamera-senter" class="ikon-btn terang" data-ikon="senter" aria-label="Senter" aria-pressed="false" hidden></button>
+      </span>
     </div>
   </div>
 
