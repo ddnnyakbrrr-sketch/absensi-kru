@@ -1,7 +1,7 @@
 /*
  * Absensi Kru Mobil Tangki
  * Hak Cipta (c) 2026 Deny Akbar
- * Versi V1
+ * Versi V1.1
  *
  * Tampilan aplikasi kru: dibuat untuk HP murah, tombol besar, teks jelas, kontras tinggi.
  * Jarak antarelemen memakai kelipatan 4 px. Warna hijau dan merah hanya untuk status.
@@ -208,7 +208,7 @@ input:focus, textarea:focus { outline: 3px solid var(--biru-muda); border-color:
 .baris-tombol .tombol { margin-top: 0; }
 
 .tombol:focus-visible, .aksi:focus-visible, .pilih:focus-visible, .tombol-tautan:focus-visible,
-.pita:focus-visible, .lihat:focus-visible, .tautan-bawah a:focus-visible {
+.pita:focus-visible, .lihat:focus-visible {
   outline: 3px solid var(--biru);
   outline-offset: 2px;
 }
@@ -472,16 +472,6 @@ body.halaman-masuk .kaki { color: rgba(255, 255, 255, 0.92); }
 
 /* ---------- Tautan bawah ---------- */
 .tautan-bawah { display: flex; justify-content: center; align-items: center; gap: 24px; margin-top: 20px; }
-.tautan-bawah a {
-  display: inline-flex;
-  align-items: center;
-  min-height: 44px;
-  padding: 0 8px;
-  color: var(--biru);
-  font-size: 16px;
-  font-weight: 700;
-  text-underline-offset: 3px;
-}
 .bantuan { font-size: 14px; color: var(--teks-2); text-align: center; margin-top: 16px; }
 .grid-aksi + .bantuan { margin-top: 12px; }
 
