@@ -1,9 +1,9 @@
 /*
  * Absensi Kru Mobil Tangki
  * Hak Cipta (c) 2026 Deny Akbar
- * Versi V1.3
+ * Versi V2.0
  *
- * Akses perangkat HP: GPS, kamera (tanpa galeri), cap foto, kompres foto, dan scan QR.
+ * Akses perangkat HP: GPS, kamera (tanpa galeri), cap foto, dan kompres foto.
  */
 (function (w) {
   'use strict';
@@ -33,10 +33,10 @@
     _id: null,
     _terakhir: null,
     _bagus: null,
+    // Posisi terakhir tetap disimpan saat pembacaan dimulai ulang (misalnya aplikasi ditinggal sebentar),
+    // dan hanya dipakai kalau umurnya kurang dari 2 menit.
     mulai: function (batasAkurasi, cb) {
       lokasi.berhenti();
-      lokasi._terakhir = null;
-      lokasi._bagus = null;
       if (!w.navigator.geolocation) {
         cb({ galat: 'HP ini tidak bisa membaca lokasi. Pakai HP lain atau hubungi admin.' });
         return;
@@ -376,87 +376,6 @@
     }
   };
 
-  // ---------- Scan QR ----------
-  // Memakai pembaca QR bawaan browser kalau ada. Kalau tidak ada (misalnya iPhone), library jsQR
-  // baru dimuat saat scan pertama, supaya aplikasi tetap cepat dibuka di HP murah.
-  var janjiJsqr = null;
-  function muatJsqr() {
-    if (w.jsQR) return Promise.resolve();
-    if (janjiJsqr) return janjiJsqr;
-    janjiJsqr = new Promise(function (ok, gagal) {
-      var s = w.document.createElement('script');
-      s.src = 'lib/jsQR.js';
-      s.onload = function () { ok(); };
-      s.onerror = function () {
-        janjiJsqr = null;
-        gagal(new Error('Pembaca QR tidak bisa dimuat'));
-      };
-      w.document.head.appendChild(s);
-    });
-    return janjiJsqr;
-  }
-
-  var qr = {
-    _jalan: false,
-    mulai: function (video, cb) {
-      qr._jalan = true;
-      var detektor = null;
-      var siap = Promise.resolve();
-      if (typeof w.BarcodeDetector === 'function' && typeof w.BarcodeDetector.getSupportedFormats === 'function') {
-        try {
-          siap = w.BarcodeDetector.getSupportedFormats().then(function (f) {
-            if (f && f.indexOf('qr_code') >= 0) detektor = new w.BarcodeDetector({ formats: ['qr_code'] });
-          }).catch(function () { detektor = null; });
-        } catch (e) {
-          detektor = null;
-        }
-      }
-      siap = siap.then(function () {
-        if (!detektor) return muatJsqr().catch(function () {});
-      });
-      var kanvas = w.document.createElement('canvas');
-      var ctx = kanvas.getContext('2d', { willReadFrequently: true });
-      function bacaJsqr() {
-        if (!w.jsQR) {
-          muatJsqr().catch(function () {});
-          return null;
-        }
-        var vw = video.videoWidth;
-        var vh = video.videoHeight;
-        var s = Math.min(1, 720 / Math.max(vw, vh));
-        kanvas.width = Math.round(vw * s);
-        kanvas.height = Math.round(vh * s);
-        ctx.drawImage(video, 0, 0, kanvas.width, kanvas.height);
-        var data = ctx.getImageData(0, 0, kanvas.width, kanvas.height);
-        var hasil = w.jsQR(data.data, data.width, data.height, { inversionAttempts: 'dontInvert' });
-        return hasil ? hasil.data : null;
-      }
-      function langkah() {
-        if (!qr._jalan) return;
-        if (video.readyState < 2 || !video.videoWidth) {
-          w.setTimeout(langkah, 200);
-          return;
-        }
-        var p = detektor
-          ? detektor.detect(video).then(function (h) { return h && h.length ? h[0].rawValue : null; })
-            .catch(function () { detektor = null; return null; })
-          : Promise.resolve().then(bacaJsqr);
-        p.then(function (teks) {
-          if (!qr._jalan) return;
-          if (teks) {
-            qr._jalan = false;
-            cb(teks);
-          } else {
-            w.setTimeout(langkah, 150);
-          }
-        });
-      }
-      siap.then(langkah);
-    },
-    berhenti: function () { qr._jalan = false; }
-  };
-
   AK.lokasi = lokasi;
   AK.kamera = kamera;
-  AK.qr = qr;
 })(window);

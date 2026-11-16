@@ -1,9 +1,10 @@
 /*
  * Absensi Kru Mobil Tangki
  * Hak Cipta (c) 2026 Deny Akbar
- * Versi V1.3
+ * Versi V2.0
  *
- * Tampilan utama: login, beranda, daftar data yang belum terkirim, pemberitahuan, dan pemasangan aplikasi.
+ * Tampilan utama: masuk admin, daftar nama kru dan karyawan, data yang belum terkirim,
+ * pemberitahuan, dan pemasangan aplikasi.
  */
 (function (w) {
   'use strict';
@@ -19,6 +20,7 @@
   var workerBaru = null;
 
   function $(id) { return d.getElementById(id); }
+  function amt(jabatan) { return jabatan === 'Supir' || jabatan === 'Kernet'; }
 
   // ---------- Warna utama dari config.js ----------
   (function terapkanWarna() {
@@ -90,6 +92,8 @@
   app.tanya = function (judul, isi, ya, tidak) {
     return app.pesan(judul, isi, [{ teks: tidak || 'Tidak', nilai: false, kedua: true }, { teks: ya || 'Ya', nilai: true }]);
   };
+
+  function chip(teks, warna) { return h('span', { class: 'chip' + (warna ? ' ' + warna : ''), text: teks }); }
 
   // ---------- Daftar data yang masih tersimpan di HP ----------
   app.lihatAntrian = function () {
@@ -213,19 +217,12 @@
     }).catch(function () { /* service worker tidak didukung */ });
   }
 
-  // ---------- Login ----------
+  // ---------- Masuk admin ----------
   function siapkanLogin() {
-    var form = $('form-login');
-    var inId = $('in-id');
     var inPin = $('in-pin');
-    inId.addEventListener('input', function () {
-      var pos = inId.selectionStart;
-      inId.value = inId.value.toUpperCase().replace(/\s+/g, '');
-      try { inId.setSelectionRange(pos, pos); } catch (e) { /* abaikan */ }
-    });
     inPin.addEventListener('input', function () { inPin.value = inPin.value.replace(/\D/g, '').slice(0, 6); });
     $('btn-lihat-pin').addEventListener('click', function () { aturLihatPin(inPin.type === 'password'); });
-    form.addEventListener('submit', function (e) {
+    $('form-login').addEventListener('submit', function (e) {
       e.preventDefault();
       masuk();
     });
@@ -235,7 +232,7 @@
     $('info-ios').hidden = !(ios && !mandiri);
     if (!AK.api.siap()) {
       $('pesan-login').className = 'kotak-pesan merah';
-      $('pesan-login').textContent = 'Alamat server belum diisi di config.js. Hubungi admin.';
+      $('pesan-login').textContent = 'Alamat server belum diisi di config.js.';
       $('pesan-login').hidden = false;
     }
   }
@@ -248,7 +245,6 @@
   }
 
   function masuk() {
-    var id = $('in-id').value.trim().toUpperCase();
     var pin = $('in-pin').value.trim();
     var kotak = $('pesan-login');
     var tombol = $('btn-masuk');
@@ -257,30 +253,28 @@
       kotak.className = 'kotak-pesan ' + (jenis || 'merah');
       kotak.textContent = pesan;
     }
-    if (!id) return tampil('Ketik ID Kru Anda. Contoh: S001 atau K001.');
-    if (!/^\d{6}$/.test(pin)) return tampil('PIN harus 6 angka.');
+    if (!/^\d{6}$/.test(pin)) return tampil('PIN admin harus 6 angka.');
     tombol.disabled = true;
     tombol.textContent = 'Memeriksa...';
     tampil('Menghubungi server...', 'biasa');
     AK.idHp.siapkan().then(function (idHp) {
-      return AK.api.panggil('login', { id: id, pin: pin, idHp: idHp });
+      return AK.api.panggil('login', { pin: pin, idHp: idHp });
     }).then(function (hasil) {
       AK.sesi.taruh({
         token: hasil.token,
-        profil: hasil.profil,
         pengaturan: hasil.pengaturan,
-        unit: hasil.unit,
-        p2h: hasil.p2h,
-        status: hasil.status,
+        kru: hasil.kru,
+        hariIni: hasil.hariIni,
         statusDiterima: AK.waktu.sekarang()
       });
       $('in-pin').value = '';
       aturLihatPin(false);
       kotak.hidden = true;
+      sinkronTerakhir = Date.now();
       app.beranda();
       AK.antrian.proses();
     }).catch(function (e) {
-      tampil(e.jaringan ? 'Tidak ada sinyal. Login butuh internet. Cari sinyal lalu coba lagi.' : e.pesan);
+      tampil(e.jaringan ? 'Tidak ada sinyal. Masuk butuh internet. Cari sinyal lalu coba lagi.' : e.pesan);
     }).then(function () {
       tombol.disabled = false;
       tombol.textContent = 'Masuk';
@@ -291,140 +285,133 @@
     AK.antrian.milikSesi().then(function (daftar) {
       var tunggu = daftar.filter(function (x) { return x.status === 'menunggu'; }).length;
       var isi = tunggu
-        ? 'Masih ada ' + tunggu + ' data yang belum terkirim. Data tetap tersimpan di HP dan akan dikirim setelah Anda masuk lagi.\n\nTetap keluar?'
-        : 'Keluar dari akun ini? Untuk masuk lagi Anda perlu ID Kru dan PIN.';
+        ? 'Masih ada ' + tunggu + ' data yang belum terkirim. Data tetap tersimpan di HP dan dikirim setelah Anda masuk lagi.\n\nTetap keluar?'
+        : 'Keluar dari akun admin? Untuk masuk lagi perlu PIN admin.';
       return app.tanya('Keluar', isi, 'Keluar', 'Batal');
     }).then(function (ya) {
       if (!ya) return;
       AK.sesi.hapus();
+      AK.alur.hentikanLokasi();
       app.tampilkan('v-login');
       app.perbaruiPita();
     });
   };
 
-  // ---------- Status efektif (status server + data yang belum terkirim) ----------
-  app.statusEfektif = function (s, daftar) {
-    var st = JSON.parse(JSON.stringify((s && s.status) || { keadaan: 'BELUM' }));
+  // ---------- Status tiap orang (status server + data yang belum terkirim) ----------
+  app.statusOrang = function (s, orang, antrian) {
     var hariIni = util.kunci(AK.waktu.sekarang());
-    if (st.hariIni && st.hariIni !== hariIni) {
-      if (st.keadaan === 'MASUK') st.keadaan = 'JALAN';
-      else if (st.keadaan === 'PULANG') { st.keadaan = 'BELUM'; delete st.sesi; }
-      st.hariIni = hariIni;
-    }
-    (daftar || []).filter(function (x) { return x.status === 'menunggu'; }).forEach(function (it) {
+    var st = s.hariIni === hariIni && orang.status ? JSON.parse(JSON.stringify(orang.status)) : { keadaan: 'BELUM' };
+    (antrian || []).filter(function (x) {
+      return x.status === 'menunggu' && x.idKru === orang.id && util.kunci(x.dibuat) === hariIni;
+    }).forEach(function (it) {
       if (it.jenis === 'masuk') {
-        st.keadaan = util.kunci(it.dibuat) === hariIni ? 'MASUK' : 'JALAN';
-        st.sesi = {
-          masuk: it.dibuat, nopol: it.ringkas.nopol, kmBerangkat: it.data.km === undefined ? null : it.data.km,
-          statusMasuk: it.ringkas.statusMasuk, menitTelat: it.ringkas.menitTelat, tertunda: true
-        };
+        st.keadaan = 'MASUK';
+        st.masuk = it.dibuat;
+        st.statusMasuk = it.ringkas.statusMasuk;
+        st.menitTelat = it.ringkas.menitTelat;
       } else if (it.jenis === 'pulang') {
-        var masukHariIni = st.sesi && st.sesi.masuk && util.kunci(st.sesi.masuk) === hariIni;
-        st.keadaan = util.kunci(it.dibuat) === hariIni || masukHariIni ? 'PULANG' : 'BELUM';
-        st.sesi = Object.assign({}, st.sesi || {}, { pulang: it.dibuat, tertunda: true });
+        st.keadaan = 'PULANG';
+        st.pulang = it.dibuat;
       }
+      st.tertunda = true;
     });
     return st;
   };
 
-  // ---------- Beranda ----------
+  // ---------- Daftar nama ----------
+  var saring = 'semua';
+  var antrianTerakhir = [];
+
   app.beranda = function () {
     var s = AK.sesi.ambil();
     if (!s) { app.tampilkan('v-login'); return Promise.resolve(); }
     app.tampilkan('v-beranda');
+    AK.alur.mulaiLokasi();
+    perbaruiInfoLokasi();
+    if (s.hariIni !== util.kunci(AK.waktu.sekarang())) app.sinkron(true);
     return AK.antrian.milikSesi().then(function (daftar) {
-      gambarBeranda(s, app.statusEfektif(s, daftar));
+      antrianTerakhir = daftar;
+      gambarDaftar();
       app.perbaruiPita();
     });
   };
 
-  function chip(teks, warna) { return h('span', { class: 'chip' + (warna ? ' ' + warna : ''), text: teks }); }
+  function normal(t) { return String(t || '').toUpperCase().replace(/\s+/g, ' ').trim(); }
 
-  function infoKru(label, nilai, penuh) {
-    return h('div', { class: penuh ? 'penuh' : null }, [
-      h('span', { class: 'label', text: label }),
-      h('span', { class: 'nilai', text: nilai })
-    ]);
-  }
-
-  function gambarBeranda(s, st) {
-    var p = s.profil;
-    var kru = util.kosongkan($('kartu-kru'));
-    kru.appendChild(h('div', { class: 'nama', text: p.nama }));
-    kru.appendChild(h('div', { class: 'jabatan', text: p.jabatan + ' · ' + p.id }));
-    var info = h('div', { class: 'info-grid' }, [
-      infoKru('Nopol', p.nopol || '-'),
-      infoKru('Kapasitas tangki', p.kapasitas ? p.kapasitas + ' KL' : '-')
-    ]);
-    if (p.jabatan === 'Kernet') info.appendChild(infoKru('Supir', p.supir || '-', true));
-    kru.appendChild(info);
-
-    var kartu = $('kartu-status');
-    var isi = util.kosongkan(kartu);
-    var sekarang = AK.waktu.sekarang();
-    var atur = s.pengaturan || {};
-    var jamMasuk = atur.jamMasuk || '06:00';
-    isi.appendChild(h('div', { class: 'status-kepala' }, [
-      h('span', { text: 'Status hari ini' }),
-      h('span', { text: util.tanggalPendek(sekarang) })
-    ]));
-    var utama = '';
-    var chips = [];
-    var rinci = [];
-    var warna = '';
-    var sesi = st.sesi || {};
+  function chipStatus(o, st) {
     if (st.keadaan === 'MASUK') {
-      utama = 'Masuk jam ' + util.jam(sesi.masuk);
-      if (sesi.statusMasuk === 'Telat') {
-        chips.push(chip('Telat ' + sesi.menitTelat + ' menit', 'merah'));
-        warna = 'merah';
-      } else if (sesi.statusMasuk) {
-        chips.push(chip(sesi.statusMasuk, 'hijau'));
-        warna = 'hijau';
-      }
-      if (sesi.nopol) rinci.push('Unit ' + sesi.nopol);
-    } else if (st.keadaan === 'JALAN') {
-      utama = 'Masih di jalan';
-      warna = 'biru';
-      rinci.push('Sejak ' + util.tanggal(sesi.masuk) + ' jam ' + util.jam(sesi.masuk));
-      if (sesi.nopol) rinci.push('Unit ' + sesi.nopol);
-      rinci.push('Lakukan absen pulang setelah kembali.');
-    } else if (st.keadaan === 'PULANG') {
-      utama = 'Sudah pulang jam ' + util.jam(sesi.pulang);
-      warna = 'hijau';
-      if (sesi.masuk) rinci.push('Masuk jam ' + util.jam(sesi.masuk) + (sesi.nopol ? ' · Unit ' + sesi.nopol : ''));
-      if (sesi.kmHarian !== null && sesi.kmHarian !== undefined) rinci.push('KM hari ini ' + util.angka(sesi.kmHarian) + ' km');
-    } else {
-      utama = 'Belum absen';
-      rinci.push('Jam masuk paling lambat ' + jamMasuk + ' WIB');
+      return chip('Masuk ' + util.jam(st.masuk), st.tertunda ? 'biru' : (st.statusMasuk === 'Telat' ? 'merah' : 'hijau'));
     }
-    if (sesi.tertunda && st.keadaan !== 'BELUM') chips.push(chip('Belum terkirim', 'biru'));
-    kartu.className = 'kartu status ' + warna;
-    isi.appendChild(h('div', { class: 'status-utama', text: utama }));
-    if (chips.length) isi.appendChild(h('div', { class: 'deret-chip' }, chips));
-    rinci.forEach(function (r) { isi.appendChild(h('div', { class: 'status-rinci', text: r })); });
-
-    var bolehMasuk = st.keadaan === 'BELUM' || st.keadaan === 'PULANG';
-    var bolehPulang = st.keadaan === 'MASUK' || st.keadaan === 'JALAN';
-    var bm = $('btn-absen-masuk');
-    var bp = $('btn-absen-pulang');
-    bm.setAttribute('aria-disabled', bolehMasuk ? 'false' : 'true');
-    bp.setAttribute('aria-disabled', bolehPulang ? 'false' : 'true');
-    $('sub-masuk').textContent = bolehMasuk ? 'Paling lambat ' + jamMasuk : 'Sudah absen masuk';
-    $('sub-pulang').textContent = bolehPulang
-      ? (st.keadaan === 'JALAN' ? 'Setelah kembali ke pool' : 'Setelah selesai tugas')
-      : (st.keadaan === 'PULANG' ? 'Sudah absen pulang' : 'Belum absen masuk');
-    bm.onclick = function () {
-      if (bolehMasuk) AK.alur.mulai('masuk', st);
-      else app.pesan('Absen masuk', 'Anda masih tercatat masuk' + (sesi.masuk ? ' sejak ' + util.tanggal(sesi.masuk) + ' jam ' + util.jam(sesi.masuk) : '') + '. Lakukan absen pulang dulu.');
-    };
-    bp.onclick = function () {
-      if (bolehPulang) AK.alur.mulai('pulang', st);
-      else app.pesan('Absen pulang', 'Anda belum absen masuk. Absen pulang hanya bisa setelah absen masuk.');
-    };
+    if (st.keadaan === 'PULANG') return chip('Pulang ' + util.jam(st.pulang), st.tertunda ? 'biru' : 'hijau');
+    if (st.izin) return chip(st.izin.jenis, 'biru');
+    return chip('Belum absen');
   }
 
-  // Sinkron jam dan status dengan server (setiap aplikasi dibuka atau kembali dilihat).
+  function gambarDaftar() {
+    var s = AK.sesi.ambil();
+    if (!s) return;
+    $('tgl-hari').textContent = util.tanggalPendek(AK.waktu.sekarang());
+    var semua = (s.kru || []).map(function (o) { return { o: o, st: app.statusOrang(s, o, antrianTerakhir) }; });
+    var sudah = semua.filter(function (x) { return x.st.keadaan !== 'BELUM'; }).length;
+    $('hitung-hadir').textContent = 'Sudah absen ' + sudah + ' dari ' + semua.length + ' orang';
+    var cari = normal($('cari').value);
+    var cariNopol = cari.replace(/[\s-]/g, '');
+    var tampil = semua.filter(function (x) {
+      if (saring === 'amt' && !amt(x.o.jabatan)) return false;
+      if (saring === 'karyawan' && amt(x.o.jabatan)) return false;
+      if (!cari) return true;
+      return normal(x.o.nama).indexOf(cari) >= 0 || (cariNopol && normal(x.o.nopol).indexOf(cariNopol) >= 0) || normal(x.o.id) === cari;
+    }).sort(function (a, b) { return a.o.nama.localeCompare(b.o.nama, 'id'); });
+    var ul = util.kosongkan($('daftar-kru'));
+    if (!tampil.length) {
+      ul.appendChild(h('li', { class: 'kosong', text: cari ? 'Nama atau nopol "' + $('cari').value.trim() + '" tidak ditemukan.' : 'Belum ada nama di daftar.' }));
+      return;
+    }
+    tampil.forEach(function (x) {
+      ul.appendChild(h('li', null, [h('button', { type: 'button', class: 'item-kru', onclick: function () { AK.alur.buka(x.o, x.st); } }, [
+        h('span', { class: 'item-teks' }, [
+          h('span', { class: 'item-nama', text: x.o.nama }),
+          h('span', { class: 'item-sub', text: x.o.jabatan + (x.o.nopol ? ' · ' + AK.kamera.nopolCap(x.o.nopol) : '') })
+        ]),
+        chipStatus(x.o, x.st)
+      ])]));
+    });
+  }
+
+  function perbaruiInfoLokasi() {
+    var el = $('info-lokasi');
+    if (!el) return;
+    var k = AK.alur.keadaanLokasi();
+    el.textContent = k.teks;
+    el.className = 'info-lokasi ' + (k.ok ? 'ok' : 'tunggu');
+  }
+
+  function siapkanBeranda() {
+    $('cari').addEventListener('input', gambarDaftar);
+    Array.prototype.forEach.call(d.querySelectorAll('.pilih-saring'), function (b) {
+      b.addEventListener('click', function () {
+        saring = b.getAttribute('data-saring');
+        Array.prototype.forEach.call(d.querySelectorAll('.pilih-saring'), function (x) {
+          x.setAttribute('aria-pressed', x === b ? 'true' : 'false');
+        });
+        gambarDaftar();
+      });
+    });
+    $('btn-segarkan').addEventListener('click', function () {
+      var b = $('btn-segarkan');
+      b.disabled = true;
+      b.textContent = 'Memuat...';
+      app.sinkron(true).then(function (ok) {
+        b.disabled = false;
+        b.textContent = 'Muat ulang daftar';
+        if (ok === false) app.pesan('Daftar belum dimuat ulang', 'Tidak ada sinyal. Daftar akan dimuat ulang saat ada sinyal.');
+      });
+    });
+    $('btn-keluar').addEventListener('click', app.keluar);
+    AK.alur.dengarLokasi(perbaruiInfoLokasi);
+  }
+
+  // Sinkron jam dan daftar nama dengan server (saat aplikasi dibuka, kembali dilihat, atau diminta).
   var sinkronTerakhir = 0;
   app.sinkron = function (paksa) {
     var s = AK.sesi.ambil();
@@ -439,14 +426,17 @@
       AK.sesi.perbarui(hasil);
       if (tampilanAktif === 'v-beranda') app.beranda();
       AK.antrian.proses();
+      return true;
     }).catch(function (e) {
       if (e.kode === 'SESI') app.sesiBerakhir(e.pesan);
+      return false;
     });
   };
 
   app.sesiBerakhir = function (pesan) {
     if (!AK.sesi.ambil()) return;
     AK.sesi.hapus();
+    AK.alur.hentikanLokasi();
     app.tampilkan('v-login');
     var kotak = $('pesan-login');
     kotak.hidden = false;
@@ -461,8 +451,8 @@
     $('kaki').textContent = (KONFIG.HAK_CIPTA || 'Hak Cipta © 2026 Deny Akbar') + ' · ' + v;
     siapkanLogo();
     siapkanLogin();
+    siapkanBeranda();
     daftarkanServiceWorker();
-    $('btn-keluar').addEventListener('click', app.keluar);
     w.addEventListener('beforeinstallprompt', function (e) {
       e.preventDefault();
       promptPasang = e;
@@ -482,16 +472,23 @@
       if ((acara === 'terkirim' || acara === 'ditolak') && tampilanAktif === 'v-beranda') app.beranda();
     });
     d.addEventListener('visibilitychange', function () {
-      if (!d.hidden) {
-        app.sinkron(false);
-        AK.antrian.proses();
-        if (tampilanAktif === 'v-beranda') app.beranda();
+      if (d.hidden) {
+        AK.alur.hentikanLokasi();
+        return;
       }
+      app.sinkron(false);
+      AK.antrian.proses();
+      if (tampilanAktif === 'v-beranda') app.beranda();
+      else if (tampilanAktif === 'v-alur') AK.alur.mulaiLokasi();
     });
     AK.idHp.siapkan().catch(function () {});
     w.history.replaceState({ v: 'awal' }, '');
-    if (AK.sesi.ambil()) app.beranda();
-    else app.tampilkan('v-login');
+    if (AK.sesi.ambil() && AK.sesi.ambil().kru) app.beranda();
+    else {
+      // Sesi dari versi lama (akun per kru) tidak dipakai lagi.
+      if (AK.sesi.ambil()) AK.sesi.hapus();
+      app.tampilkan('v-login');
+    }
     app.sinkron(true);
     AK.antrian.proses();
   }

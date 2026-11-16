@@ -1,7 +1,7 @@
 /*
  * Absensi Kru Mobil Tangki
  * Hak Cipta (c) 2026 Deny Akbar
- * Versi V1.1
+ * Versi V2.0
  *
  * Antrian kirim: setiap absen disimpan dulu di HP, lalu dikirim berurutan.
  * Kalau sinyal hilang atau server sibuk, data dicoba kirim lagi otomatis.
@@ -34,11 +34,10 @@
         return (d || []).sort(function (a, b) { return a.dibuat - b.dibuat; });
       }, function () { return []; });
     },
+    // Semua data di HP ini milik akun admin yang sedang masuk.
     milikSesi: function () {
       var s = AK.sesi.ambil();
-      return antrian.semua().then(function (d) {
-        return d.filter(function (x) { return s && x.idKru === s.profil.id; });
-      });
+      return antrian.semua().then(function (d) { return s ? d : []; });
     },
     tambah: function (item) {
       item.status = 'menunggu';
@@ -68,7 +67,7 @@
         return antrian.semua().then(function (d) {
           var sesiKini = AK.sesi.ambil();
           if (!sesiKini) return null;
-          var daftar = d.filter(function (x) { return x.status === 'menunggu' && x.idKru === sesiKini.profil.id; });
+          var daftar = d.filter(function (x) { return x.status === 'menunggu'; });
           if (!daftar.length) return null;
           var it = daftar[0];
           if (it.tungguSampai && it.tungguSampai > Date.now()) {
@@ -78,7 +77,7 @@
           var data = Object.assign({}, it.data, { token: sesiKini.token, idHp: AK.idHp.ambil() });
           return AK.api.panggil(it.jenis, data, { batas: 120000 }).then(function (hasil) {
             return AK.db.hapus('antrian', it.idKirim).then(function () {
-              if (hasil.status) AK.sesi.perbarui({ status: hasil.status });
+              if (hasil.kru) AK.sesi.perbaruiKru(hasil.kru);
               umumkan('terkirim', it, hasil);
               return berikut();
             });
