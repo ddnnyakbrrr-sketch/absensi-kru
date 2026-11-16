@@ -1,7 +1,7 @@
 /*
  * Absensi Kru Mobil Tangki
  * Hak Cipta (c) 2026 Deny Akbar
- * Versi V1
+ * Versi V1.1
  *
  * Service worker: menyimpan file aplikasi di HP supaya tetap bisa dibuka tanpa sinyal.
  * Nama cache mengikuti VERSI di config.js. Saat VERSI dinaikkan, HP mengunduh versi baru
@@ -13,7 +13,6 @@ var CACHE = 'absensi-kru-' + self.KONFIG.VERSI;
 var FILE_WAJIB = [
   './',
   'index.html',
-  'panduan-kru.html',
   'config.js',
   'manifest.webmanifest',
   'css/app.css',
