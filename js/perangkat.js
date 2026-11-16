@@ -1,7 +1,7 @@
 /*
  * Absensi Kru Mobil Tangki
  * Hak Cipta (c) 2026 Deny Akbar
- * Versi V2.0
+ * Versi V2.1
  *
  * Akses perangkat HP: GPS, kamera (tanpa galeri), cap foto, dan kompres foto.
  */
@@ -339,11 +339,11 @@
       if (!t || !t.applyConstraints) return Promise.resolve(false);
       return t.applyConstraints({ advanced: [{ torch: !!nyala }] }).then(function () { return true; }, function () { return false; });
     },
-    // Ambil gambar dari video apa adanya (tidak dibalik), sisi terpanjang maksimal 1280 px.
+    // Ambil gambar dari video apa adanya (tidak dibalik), sisi terpanjang maksimal 960 px supaya cepat dikirim.
     jepret: function (video) {
       var vw = video.videoWidth;
       var vh = video.videoHeight;
-      var skala = Math.min(1, 1280 / Math.max(vw, vh));
+      var skala = Math.min(1, 960 / Math.max(vw, vh));
       var c = w.document.createElement('canvas');
       c.width = Math.round(vw * skala);
       c.height = Math.round(vh * skala);
@@ -354,10 +354,10 @@
     cap: cap,
     koordinatCap: koordinatCap,
     nopolCap: nopolCap,
-    // Kompres JPEG sampai di bawah 200 KB.
+    // Kompres JPEG sampai di bawah 140 KB.
     kompres: function (c) {
-      var target = 195 * 1024;
-      var kualitas = [0.82, 0.72, 0.62, 0.52, 0.45];
+      var target = 140 * 1024;
+      var kualitas = [0.8, 0.7, 0.6, 0.5, 0.45];
       function coba(cv, i) {
         return kanvasKeBlob(cv, kualitas[i]).then(function (b) {
           if (b && b.size <= target) return b;

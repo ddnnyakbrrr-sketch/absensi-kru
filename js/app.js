@@ -1,7 +1,7 @@
 /*
  * Absensi Kru Mobil Tangki
  * Hak Cipta (c) 2026 Deny Akbar
- * Versi V2.0
+ * Versi V2.1
  *
  * Tampilan utama: masuk admin, daftar nama kru dan karyawan, data yang belum terkirim,
  * pemberitahuan, dan pemasangan aplikasi.
@@ -20,7 +20,7 @@
   var workerBaru = null;
 
   function $(id) { return d.getElementById(id); }
-  function amt(jabatan) { return jabatan === 'Supir' || jabatan === 'Kernet'; }
+  function amt(jabatan) { return jabatan === 'AMT 1' || jabatan === 'AMT 2'; }
 
   // ---------- Warna utama dari config.js ----------
   (function terapkanWarna() {
@@ -377,6 +377,12 @@
       ])]));
     });
   }
+
+  // Dipanggil setelah absen tersimpan, supaya orang berikutnya langsung bisa mengetik namanya.
+  app.kosongkanCari = function () {
+    var c = $('cari');
+    if (c) c.value = '';
+  };
 
   function perbaruiInfoLokasi() {
     var el = $('info-lokasi');

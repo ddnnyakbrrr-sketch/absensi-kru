@@ -1,10 +1,11 @@
 /*
  * Absensi Kru Mobil Tangki
  * Hak Cipta (c) 2026 Deny Akbar
- * Versi V2.0
+ * Versi V2.1
  *
  * Absen di HP admin: orang yang dipilih dari daftar selfie dengan kamera depan, lalu dikirim.
- * AMT (supir dan kernet) cukup absen masuk. Karyawan absen masuk dan pulang.
+ * AMT 1 dan AMT 2 cukup absen masuk. Karyawan absen masuk dan pulang.
+ * Setelah Kirim, data langsung disimpan di HP dan dikirim di belakang layar, jadi orang berikutnya tidak menunggu.
  * Lokasi dibaca terus selama aplikasi terbuka, supaya koordinat dan alamat tercetak di foto.
  */
 (function (w) {
@@ -16,7 +17,7 @@
   function $(id) { return d.getElementById(id); }
 
   function akurasiMaks() { var s = AK.sesi.ambil(); return (s && s.pengaturan && s.pengaturan.akurasiMaks) || 100; }
-  function amt(jabatan) { return jabatan === 'Supir' || jabatan === 'Kernet'; }
+  function amt(jabatan) { return jabatan === 'AMT 1' || jabatan === 'AMT 2'; }
 
   // ---------- Lokasi dan alamat ----------
   var posisi = { aktif: false, galat: '', mulai: 0, alamat: null };
@@ -95,12 +96,12 @@
   }
 
   // ---------- Isi cap foto ----------
-  // AMT1 untuk supir, AMT2 untuk kernet, jabatan lain ditulis apa adanya.
+  // Di cap foto, AMT 1 dan AMT 2 ditulis AMT1 dan AMT2. Jabatan lain ditulis apa adanya.
   function infoCap(label, orang, waktu, gps) {
     var s = AK.sesi.ambil();
     var atur = (s && s.pengaturan) || {};
     var tgl = util.tanggal(waktu).split(', ');
-    var kode = orang.jabatan === 'Supir' ? 'AMT1' : (orang.jabatan === 'Kernet' ? 'AMT2' : String(orang.jabatan || 'Karyawan').toUpperCase());
+    var kode = amt(orang.jabatan) ? orang.jabatan.replace(/\s+/g, '') : String(orang.jabatan || 'Karyawan').toUpperCase();
     var baris = [kode + ': ' + orang.nama];
     if (orang.nopol) baris.push('NOPOL: ' + AK.kamera.nopolCap(orang.nopol));
     baris.push('Koordinat: ' + (gps ? AK.kamera.koordinatCap(gps) : 'belum terbaca'));
@@ -168,9 +169,10 @@
           jepret.disabled = true;
           pesan.textContent = 'Memproses foto...';
           var waktu = AK.waktu.sekarang();
-          var kanvas = AK.kamera.cap(AK.kamera.jepret(video), opsi.info(waktu, gps));
+          var info = opsi.info(waktu, gps);
+          var kanvas = AK.kamera.cap(AK.kamera.jepret(video), info);
           AK.kamera.kompres(kanvas).then(function (foto) {
-            akhiri({ dataUrl: foto.dataUrl, ukuran: foto.ukuran, waktu: waktu, gps: gps });
+            akhiri({ dataUrl: foto.dataUrl, ukuran: foto.ukuran, waktu: waktu, gps: gps, alamat: info.alamat || '' });
           }, function () {
             pesan.textContent = 'Foto gagal diproses. Coba ambil lagi.';
             jepret.disabled = false;
@@ -200,13 +202,17 @@
     AK.app.tampilkan('v-alur');
     mulaiLokasi();
     gambar();
+    // Kalau lokasi sudah terbaca, kamera depan langsung dibuka supaya absen lebih cepat.
+    if (alur.jenis && keadaanLokasi().ok) ambilFoto();
   }
 
-  function kembaliKeDaftar() {
+  // bersihkanCari = true setelah absen tersimpan, supaya orang berikutnya langsung bisa mencari namanya.
+  function kembaliKeDaftar(bersihkanCari) {
     if (timerKembali) { w.clearTimeout(timerKembali); timerKembali = null; }
     if (kameraAktif) kameraAktif.tutup();
     alur = null;
     AK.app.tutupBar();
+    if (bersihkanCari === true) AK.app.kosongkanCari();
     AK.app.beranda();
   }
 
@@ -241,13 +247,13 @@
     wadah.appendChild(h('div', { class: 'kartu profil' }, [
       h('div', { class: 'nama', text: o.nama }),
       h('div', { class: 'jabatan', text: teksJabatan(o) }),
-      h('div', { class: 'status-rinci', text: teksStatus(st) })
+      h('div', { class: 'status-rinci', text: alur.hasil && alur.hasil.status === 'disimpan' ? 'Absen tersimpan di HP' : teksStatus(st) })
     ]));
 
     if (alur.hasil) { gambarHasil(wadah); return; }
     if (!alur.jenis) {
       wadah.appendChild(h('div', { class: 'kotak-pesan hijau', text: amt(o.jabatan)
-        ? 'Supir dan kernet cukup absen masuk sekali sehari. Absen ' + o.nama + ' hari ini sudah tercatat.'
+        ? 'AMT cukup absen masuk sekali sehari. Absen ' + o.nama + ' hari ini sudah tercatat.'
         : 'Absen masuk dan pulang ' + o.nama + ' hari ini sudah tercatat.' }));
       AK.app.isiBar([h('button', { type: 'button', class: 'tombol', text: 'Kembali ke Daftar', onclick: kembaliKeDaftar })]);
       return;
@@ -336,7 +342,7 @@
     }
     var tombol = $('btn-kirim');
     tombol.disabled = true;
-    tombol.textContent = 'Mengirim...';
+    tombol.textContent = 'Menyimpan...';
     Array.prototype.forEach.call($('bar-isi').querySelectorAll('button'), function (b) { b.disabled = true; });
     var jenis = alur.jenis;
     var data = {
@@ -344,6 +350,8 @@
       idKru: o.id,
       waktu: alur.foto.waktu,
       gps: { lat: g.lat, lng: g.lng, akurasi: g.akurasi },
+      // Alamat yang tercetak di foto ikut dikirim supaya server tidak perlu mencarinya lagi.
+      alamat: alur.foto.alamat || '',
       foto: { selfie: alur.foto.dataUrl }
     };
     var tl = jenis === 'masuk' ? perkiraanTelat(o, alur.foto.waktu) : {};
@@ -360,10 +368,16 @@
         menitTelat: tl.menitTelat
       }
     };
-    AK.antrian.kirimDanTunggu(item, 45000).then(function (hasil) {
-      if (hasil.status === 'ditolak') AK.antrian.hapus(item.idKirim);
+    // Data disimpan di HP lalu dikirim di belakang layar. Admin tidak perlu menunggu server untuk lanjut
+    // ke orang berikutnya. Kalau server menolak, pita merah di atas layar memberi tahu.
+    AK.antrian.tambah(item).then(function () {
+      AK.antrian.segera();
+      return 'disimpan';
+    }, function () {
+      return 'gagalSimpan';
+    }).then(function (status) {
       if (!alur || alur.orang.id !== o.id) return;
-      alur.hasil = { jenis: jenis, item: item, hasil: hasil };
+      alur.hasil = { jenis: jenis, item: item, status: status };
       gambar();
     });
   }
@@ -371,32 +385,22 @@
   function gambarHasil(wadah) {
     var x = alur.hasil;
     var o = alur.orang;
-    var judul = (x.jenis === 'masuk' ? 'Absen masuk ' : 'Absen pulang ') + o.nama;
-    var otomatis = false;
-    if (x.hasil.status === 'terkirim') {
-      var sesi = (x.hasil.hasil.ringkasan && x.hasil.hasil.ringkasan.sesi) || {};
-      var waktu = x.jenis === 'masuk' ? sesi.masuk : sesi.pulang;
-      var rinci = judul + ' tercatat di server jam ' + util.jam(waktu) + ' WIB.';
-      if (x.jenis === 'masuk') rinci += sesi.statusMasuk === 'Telat' ? ' Telat ' + sesi.menitTelat + ' menit.' : ' Tepat waktu.';
-      if (x.jenis === 'pulang' && sesi.durasiMenit !== null && sesi.durasiMenit !== undefined) {
-        rinci += ' Lama kerja ' + util.durasi(sesi.durasiMenit) + '.';
-      }
-      wadah.appendChild(h('div', { class: 'kotak-pesan hijau', text: rinci }));
-      otomatis = true;
-    } else if (x.hasil.status === 'tertunda') {
-      wadah.appendChild(h('div', { class: 'kotak-pesan biasa', text: judul + ' disimpan di HP. Data dikirim otomatis saat ada sinyal.' }));
-      otomatis = true;
-    } else if (x.hasil.status === 'ditolak') {
-      wadah.appendChild(h('div', { class: 'kotak-pesan merah', text: 'Ditolak server: ' + ((x.hasil.galat && x.hasil.galat.pesan) || 'alasan tidak diketahui.') }));
-    } else {
+    if (x.status !== 'disimpan') {
       wadah.appendChild(h('div', { class: 'kotak-pesan merah', text: 'Data tidak bisa disimpan di HP. Ulangi absen.' }));
+      AK.app.isiBar([h('button', { type: 'button', class: 'tombol', text: 'Kembali ke Daftar', onclick: kembaliKeDaftar })]);
+      return;
     }
-    if (alur.foto) wadah.appendChild(h('img', { class: 'foto-kecil', src: alur.foto.dataUrl, alt: 'Foto yang dikirim' }));
-    AK.app.isiBar([h('button', { type: 'button', class: 'tombol', text: 'Kembali ke Daftar', onclick: kembaliKeDaftar })]);
-    if (otomatis) {
-      wadah.appendChild(h('p', { class: 'kecil', text: 'Kembali ke daftar nama dalam 4 detik.' }));
-      timerKembali = w.setTimeout(function () { timerKembali = null; if (alur && alur.hasil === x) kembaliKeDaftar(); }, 4000);
+    var rinci = (x.jenis === 'masuk' ? 'Absen masuk ' : 'Absen pulang ') + o.nama + ' jam ' + util.jam(x.item.dibuat) + ' tersimpan.';
+    if (x.jenis === 'masuk') {
+      rinci += x.item.ringkas.statusMasuk === 'Telat' ? ' Telat ' + x.item.ringkas.menitTelat + ' menit.' : ' Tepat waktu.';
     }
+    rinci += w.navigator.onLine === false ? ' Data dikirim otomatis saat ada sinyal.' : ' Data sedang dikirim ke server.';
+    wadah.appendChild(h('div', { class: 'kotak-pesan hijau', text: rinci }));
+    if (alur.foto) wadah.appendChild(h('img', { class: 'foto-kecil', src: alur.foto.dataUrl, alt: 'Foto yang disimpan' }));
+    var lanjut = function () { kembaliKeDaftar(true); };
+    AK.app.isiBar([h('button', { type: 'button', class: 'tombol', text: 'Lanjut ke Nama Berikutnya', onclick: lanjut })]);
+    wadah.appendChild(h('p', { class: 'kecil', text: 'Kembali ke daftar nama dalam 2 detik.' }));
+    timerKembali = w.setTimeout(function () { timerKembali = null; if (alur && alur.hasil === x) lanjut(); }, 2000);
   }
 
   AK.alur = {
