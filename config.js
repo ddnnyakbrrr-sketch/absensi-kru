@@ -1,7 +1,7 @@
 /*
  * Absensi Kru Mobil Tangki
  * Hak Cipta (c) 2026 Deny Akbar
- * Versi V2.2
+ * Versi V2.3
  *
  * Pengaturan aplikasi HP. Hanya file ini yang perlu diubah saat pemasangan atau update.
  */
@@ -11,7 +11,7 @@ self.KONFIG = {
 
   // Nomor versi. Naikkan setiap kali ada file aplikasi yang diubah (contoh: V2.2 menjadi V2.3),
   // supaya HP kru mendapat pemberitahuan "Versi baru tersedia".
-  VERSI: 'V2.2',
+  VERSI: 'V2.3',
 
   // Warna utama biru dari logo Pertamina/Patra Logistik (format #RRGGBB).
   WARNA_UTAMA: '#006CB8',
